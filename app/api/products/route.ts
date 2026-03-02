@@ -5,6 +5,18 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const ids = searchParams.get("ids");
+    const teams = searchParams.get("teams");
+
+    if (teams) {
+      const teamList = teams.split(",").map((t) => t.trim()).filter(Boolean);
+      const products = await prisma.product.findMany({
+        where: {
+          active: true,
+          tags: { hasSome: teamList },
+        },
+      });
+      return NextResponse.json({ products });
+    }
 
     if (ids) {
       const productIds = ids.split(",");

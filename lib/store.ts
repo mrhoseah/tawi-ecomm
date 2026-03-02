@@ -1,22 +1,25 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-interface CartItem {
+export interface CartItem {
   productId: string;
   slug?: string;
   name: string;
-  price: number;
+  price: number; // Unit price (base + printing cost if personalized)
   image: string;
   quantity: number;
   size?: string;
   color?: string;
+  printedName?: string;
+  printedNumber?: string;
+  printingCost?: number;
 }
 
 interface CartStore {
   items: CartItem[];
   addItem: (item: CartItem) => void;
-  removeItem: (productId: string, size?: string, color?: string) => void;
-  updateQuantity: (productId: string, quantity: number, size?: string, color?: string) => void;
+  removeItem: (productId: string, size?: string, color?: string, printedName?: string, printedNumber?: string) => void;
+  updateQuantity: (productId: string, quantity: number, size?: string, color?: string, printedName?: string, printedNumber?: string) => void;
   clearCart: () => void;
   getTotal: () => number;
   getItemCount: () => number;
@@ -32,7 +35,9 @@ export const useCartStore = create<CartStore>()(
           (i) =>
             i.productId === item.productId &&
             i.size === item.size &&
-            i.color === item.color
+            i.color === item.color &&
+            (i.printedName || "") === (item.printedName || "") &&
+            (i.printedNumber || "") === (item.printedNumber || "")
         );
 
         if (existingIndex >= 0) {
@@ -43,25 +48,31 @@ export const useCartStore = create<CartStore>()(
           set({ items: [...items, item] });
         }
       },
-      removeItem: (productId, size, color) => {
+      removeItem: (productId, size, color, printedName, printedNumber) => {
         set({
           items: get().items.filter(
             (i) =>
               !(
                 i.productId === productId &&
-                i.size === size &&
-                i.color === color
+                (i.size || undefined) === (size || undefined) &&
+                (i.color || undefined) === (color || undefined) &&
+                (i.printedName || "") === (printedName || "") &&
+                (i.printedNumber || "") === (printedNumber || "")
               )
           ),
         });
       },
-      updateQuantity: (productId, quantity, size, color) => {
+      updateQuantity: (productId, quantity, size, color, printedName, printedNumber) => {
         if (quantity <= 0) {
-          get().removeItem(productId, size, color);
+          get().removeItem(productId, size, color, printedName, printedNumber);
           return;
         }
         const items = get().items.map((i) =>
-          i.productId === productId && i.size === size && i.color === color
+          i.productId === productId &&
+          (i.size || undefined) === (size || undefined) &&
+          (i.color || undefined) === (color || undefined) &&
+          (i.printedName || "") === (printedName || "") &&
+          (i.printedNumber || "") === (printedNumber || "")
             ? { ...i, quantity }
             : i
         );

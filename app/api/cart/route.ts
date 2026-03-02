@@ -34,31 +34,33 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { productId, quantity, size, color } = body;
+    const { productId, quantity, size, color, printedName, printedNumber, printingCost } = body;
 
     const userId = (session.user as any).id;
 
-    // Check if item already exists in cart
+    const printedNameVal = printedName || "";
+    const printedNumberVal = printedNumber || "";
+
     const existing = await prisma.cartItem.findUnique({
       where: {
-        userId_productId_size_color: {
+        userId_productId_size_color_printedName_printedNumber: {
           userId,
           productId,
           size: size || null,
           color: color || null,
+          printedName: printedNameVal,
+          printedNumber: printedNumberVal,
         },
       },
     });
 
     if (existing) {
-      // Update quantity
       const updated = await prisma.cartItem.update({
         where: { id: existing.id },
         data: { quantity: existing.quantity + quantity },
       });
       return NextResponse.json(updated);
     } else {
-      // Create new cart item
       const created = await prisma.cartItem.create({
         data: {
           userId,
@@ -66,6 +68,9 @@ export async function POST(request: NextRequest) {
           quantity,
           size: size || null,
           color: color || null,
+          printedName: printedNameVal,
+          printedNumber: printedNumberVal,
+          printingCost: printingCost || 0,
         },
         include: { product: true },
       });
@@ -75,6 +80,55 @@ export async function POST(request: NextRequest) {
     console.error("Error adding to cart:", error);
     return NextResponse.json(
       { error: "Failed to add to cart" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const session = await auth();
+
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { itemId, quantity } = body;
+
+    if (!itemId || quantity === undefined || quantity < 0) {
+      return NextResponse.json(
+        { error: "itemId and quantity (>= 0) required" },
+        { status: 400 }
+      );
+    }
+
+    const userId = (session.user as any).id;
+
+    if (quantity === 0) {
+      await prisma.cartItem.deleteMany({
+        where: { id: itemId, userId },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    const existing = await prisma.cartItem.findFirst({
+      where: { id: itemId, userId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Cart item not found" }, { status: 404 });
+    }
+
+    await prisma.cartItem.update({
+      where: { id: itemId },
+      data: { quantity },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error updating cart:", error);
+    return NextResponse.json(
+      { error: "Failed to update cart" },
       { status: 500 }
     );
   }

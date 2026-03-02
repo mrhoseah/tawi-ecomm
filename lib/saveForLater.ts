@@ -8,6 +8,9 @@ export interface SaveForLaterItem {
   image: string;
   size?: string;
   color?: string;
+  printedName?: string;
+  printedNumber?: string;
+  printingCost?: number;
 }
 
 export function saveForLater(item: SaveForLaterItem) {
@@ -22,7 +25,9 @@ export function saveForLater(item: SaveForLaterItem) {
     (s) =>
       s.productId === item.productId &&
       s.size === item.size &&
-      s.color === item.color
+      s.color === item.color &&
+      (s.printedName || "") === (item.printedName || "") &&
+      (s.printedNumber || "") === (item.printedNumber || "")
   );
 
   if (!exists) {
@@ -37,16 +42,28 @@ export function getSaveForLater(): SaveForLaterItem[] {
   return JSON.parse(localStorage.getItem("saveForLater") || "[]");
 }
 
-export function removeFromSaveForLater(productId: string, size?: string, color?: string) {
+export function removeFromSaveForLater(
+  productId: string,
+  size?: string,
+  color?: string,
+  printedName?: string,
+  printedNumber?: string
+) {
   if (typeof window === "undefined") return;
-  
+
   const saved = JSON.parse(
     localStorage.getItem("saveForLater") || "[]"
   ) as SaveForLaterItem[];
 
   const filtered = saved.filter(
     (s) =>
-      !(s.productId === productId && s.size === size && s.color === color)
+      !(
+        s.productId === productId &&
+        (s.size || undefined) === (size || undefined) &&
+        (s.color || undefined) === (color || undefined) &&
+        (s.printedName || "") === (printedName || "") &&
+        (s.printedNumber || "") === (printedNumber || "")
+      )
   );
 
   localStorage.setItem("saveForLater", JSON.stringify(filtered));

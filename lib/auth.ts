@@ -1,12 +1,16 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import GitHubProvider from "next-auth/providers/github";
+import CognitoProvider from "next-auth/providers/cognito";
 import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
 
+const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+if (!authSecret && process.env.NODE_ENV === "production") {
+  console.error("SECURITY: AUTH_SECRET or NEXTAUTH_SECRET must be set in production");
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // Note: PrismaAdapter is optional - we're using JWT strategy instead
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -48,24 +52,50 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
+    CognitoProvider({
+      clientId: process.env.COGNITO_CLIENT_ID || "",
+      clientSecret: process.env.COGNITO_CLIENT_SECRET || "",
+      issuer: process.env.COGNITO_ISSUER_URL,
+    }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     }),
-    GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID || "",
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
-    }),
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours - refresh session daily
   },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.role = (user as any).role || "customer";
-        token.id = user.id;
+      // When a user first signs in, NextAuth passes the user object (from
+      // credentials, Google, Cognito, etc.). Ensure we always set token.email
+      // so we can sync with our Prisma User record.
+      if (user && user.email) {
+        token.email = user.email;
+        token.name = user.name ?? token.name;
       }
+
+      // Keep app roles and user ids in our own database.
+      if (token.email) {
+        const email = token.email as string;
+        const name = (token.name as string | undefined) ?? null;
+
+        const dbUser = await prisma.user.upsert({
+          where: { email },
+          update: { name: name ?? undefined },
+          create: {
+            email,
+            name,
+            role: "customer",
+          },
+        });
+
+        (token as any).id = dbUser.id;
+        (token as any).role = dbUser.role;
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -77,8 +107,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   pages: {
-    signIn: "/auth/signin",
+    signIn: "/sign-in",
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: authSecret,
+  trustHost: true,
 });
 

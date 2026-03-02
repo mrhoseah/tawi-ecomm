@@ -84,6 +84,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Decrement stock for each item without going below zero
+    for (const item of items) {
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId },
+        select: { stock: true },
+      });
+
+      if (!product) continue;
+
+      const decrementBy = Math.min(product.stock, item.quantity);
+      if (decrementBy > 0) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: decrementBy } },
+        });
+      }
+    }
+
     // Create order
     const order = await prisma.order.create({
       data: {
@@ -107,6 +125,9 @@ export async function POST(request: NextRequest) {
             price: item.price,
             size: item.size || null,
             color: item.color || null,
+            printedName: item.printedName || null,
+            printedNumber: item.printedNumber || null,
+            printingCost: item.printingCost || 0,
           })),
         },
       },

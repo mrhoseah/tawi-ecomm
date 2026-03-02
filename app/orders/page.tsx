@@ -33,7 +33,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (!session) {
-      router.push("/auth/signin?callbackUrl=/orders");
+      router.push("/sign-in?callbackUrl=/orders");
       return;
     }
 

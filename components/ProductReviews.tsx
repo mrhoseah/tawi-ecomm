@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Star, ThumbsUp, CheckCircle } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { useToast } from "./Toast";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -11,6 +12,7 @@ interface Review {
   rating: number;
   title?: string | null;
   comment?: string | null;
+  images?: string[];
   verified: boolean;
   helpful: number;
   createdAt: string;
@@ -34,6 +36,7 @@ export default function ProductReviews({
   reviewCount,
 }: ProductReviewsProps) {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +45,19 @@ export default function ProductReviews({
     rating: 5,
     title: "",
     comment: "",
+    images: [] as string[],
   });
+  const [files, setFiles] = useState<File[]>([]);
 
   useEffect(() => {
     fetchReviews();
   }, [productId]);
+
+  useEffect(() => {
+    if (searchParams.get("review") && session) {
+      setShowForm(true);
+    }
+  }, [searchParams, session]);
 
   const fetchReviews = async () => {
     try {
@@ -68,10 +79,32 @@ export default function ProductReviews({
     }
 
     try {
+      let imageUrls: string[] = [];
+
+      if (files.length > 0) {
+        const uploadForm = new FormData();
+        files.forEach((file) => uploadForm.append("files", file));
+
+        const uploadRes = await fetch("/api/uploads/review-images", {
+          method: "POST",
+          body: uploadForm,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error("Image upload failed");
+        }
+
+        const uploadData = await uploadRes.json();
+        imageUrls = uploadData.urls || [];
+      }
+
       const response = await fetch(`/api/products/${productId}/reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          images: imageUrls,
+        }),
       });
 
       if (!response.ok) {
@@ -80,7 +113,8 @@ export default function ProductReviews({
 
       showToast("Review submitted successfully!", "success");
       setShowForm(false);
-      setFormData({ rating: 5, title: "", comment: "" });
+      setFormData({ rating: 5, title: "", comment: "", images: [] });
+      setFiles([]);
       fetchReviews();
     } catch (error) {
       showToast("Failed to submit review", "error");
@@ -182,6 +216,37 @@ export default function ProductReviews({
                 required
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Photos (optional)
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Upload up to 4 images to show your product in real life.
+              </p>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  const selected = Array.from(e.target.files || []).slice(0, 4);
+                  setFiles(selected);
+                }}
+                className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
+              />
+              {files.length > 0 && (
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {files.map((file, idx) => (
+                    <div key={idx} className="relative h-16 w-full rounded overflow-hidden bg-gray-100">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex gap-2">
               <button
                 type="submit"
@@ -193,7 +258,7 @@ export default function ProductReviews({
                 type="button"
                 onClick={() => {
                   setShowForm(false);
-                  setFormData({ rating: 5, title: "", comment: "" });
+                  setFormData({ rating: 5, title: "", comment: "", images: [] });
                 }}
                 className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
@@ -248,6 +313,22 @@ export default function ProductReviews({
               )}
               {review.comment && (
                 <p className="text-gray-700 mb-3">{review.comment}</p>
+              )}
+              {review.images && review.images.length > 0 && (
+                <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {review.images.map((url, idx) => (
+                    <div
+                      key={idx}
+                      className="relative h-20 w-full rounded overflow-hidden bg-gray-100"
+                    >
+                      <img
+                        src={url}
+                        alt={`Review photo ${idx + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
               )}
               <button
                 onClick={() => handleHelpful(review.id)}

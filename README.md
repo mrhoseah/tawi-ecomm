@@ -7,7 +7,7 @@ A fully featured e-commerce shop for selling sports jerseys and athletic apparel
 - 🛍️ **Product Catalog** - Browse and search through jerseys, apparel, and accessories
 - 🛒 **Shopping Cart** - Add items to cart with size and color options
 - 💳 **Checkout Process** - Complete order placement with shipping information
-- 👤 **User Authentication** - Sign up, sign in with credentials, Google, or GitHub
+- 👤 **User Authentication** - Sign up, sign in with credentials or Google
 - 📦 **Order Management** - View order history and track order status
 - 🎨 **Modern UI** - Professional landing page with Tailwind CSS
 - 🔐 **NextAuth Integration** - Secure authentication with multiple providers
@@ -138,9 +138,8 @@ tawi-ecomm/
 The app supports multiple authentication methods:
 - **Credentials** - Email and password
 - **Google OAuth** - Sign in with Google
-- **GitHub OAuth** - Sign in with GitHub
 
-To enable OAuth providers, add your client IDs and secrets to the `.env` file.
+To enable Google OAuth, add your client ID and secret to the `.env` file.
 
 ## Environment Variables
 
@@ -151,8 +150,6 @@ To enable OAuth providers, add your client IDs and secrets to the `.env` file.
 | `NEXTAUTH_SECRET` | Secret for JWT encryption | Yes |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID | No |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | No |
-| `GITHUB_CLIENT_ID` | GitHub OAuth client ID | No |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | No |
 
 ## Development
 

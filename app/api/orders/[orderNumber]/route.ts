@@ -15,11 +15,13 @@ export async function GET(
   const { orderNumber } = await params;
 
   try {
-    const order = await prisma.order.findUnique({
-      where: {
-        orderNumber,
-        userId: (session.user as any).id,
-      },
+    const role = (session.user as any).role || "customer";
+    const isAdmin = role === "admin" || role === "support";
+
+    const order = await prisma.order.findFirst({
+      where: isAdmin
+        ? { orderNumber }
+        : { orderNumber, userId: (session.user as any).id },
       include: {
         items: {
           include: {

@@ -4,6 +4,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 import PWAInstaller from "@/components/PWAInstaller";
 import ServiceWorkerRegistration from "./sw";
+import SeoScripts from "@/components/SeoScripts";
+import { getSeoSettings } from "@/lib/seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,34 +17,42 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Tawi Shop - Premium Sports Jerseys & Apparel",
-  description: "Official Tawi Shop - Your destination for premium sports jerseys, kits, and athletic apparel. Owned by Tawi TV, your trusted sports broadcasting partner.",
-  manifest: "/manifest.json",
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
   themeColor: "#dc2626",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Tawi Shop",
-  },
-  icons: {
-    icon: [
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: [
-      { url: "/icons/icon-152x152.png", sizes: "152x152", type: "image/png" },
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-    ],
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-    viewportFit: "cover",
-  },
-};
+} as const;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { siteName, defaultMetaDesc } = await getSeoSettings();
+  return {
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://tawitv.com"),
+    title: {
+      default: siteName,
+      template: `%s | ${siteName}`,
+    },
+    description: defaultMetaDesc,
+    manifest: "/manifest.json",
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: "Tawi Shop",
+    },
+    icons: {
+      icon: [
+        { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+      ],
+      apple: [
+        { url: "/icons/icon-152x152.png", sizes: "152x152", type: "image/png" },
+        { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      ],
+    },
+  };
+}
 
 export default function RootLayout({
   children,
@@ -66,6 +76,7 @@ export default function RootLayout({
           {children}
           <PWAInstaller />
           <ServiceWorkerRegistration />
+          <SeoScripts />
         </Providers>
       </body>
     </html>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, ShoppingCart } from "lucide-react";
 import QuickAddToCart from "./QuickAddToCart";
+import Price from "./Price";
 import Link from "next/link";
 
 interface Product {
@@ -108,22 +109,16 @@ export default function QuickViewModal({
             </div>
             <h3 className="text-2xl font-bold mb-4">{product.name}</h3>
 
-            <div className="mb-4">
-              {product.compareAtPrice ? (
-                <div className="flex items-center gap-4">
-                  <span className="text-3xl font-bold text-red-600">
-                    ${product.price.toFixed(2)}
-                  </span>
-                  <span className="text-xl text-gray-400 line-through">
-                    ${product.compareAtPrice.toFixed(2)}
-                  </span>
-                  <span className="bg-red-100 text-red-600 px-2 py-1 rounded text-sm font-semibold">
-                    Save ${(product.compareAtPrice - product.price).toFixed(2)}
-                  </span>
-                </div>
-              ) : (
-                <span className="text-3xl font-bold text-gray-900">
-                  ${product.price.toFixed(2)}
+            <div className="mb-4 flex flex-wrap items-center gap-4">
+              <Price
+                amount={product.price}
+                compareAt={product.compareAtPrice}
+                showCompare
+                className="text-3xl font-bold"
+              />
+              {product.compareAtPrice && product.compareAtPrice > product.price && (
+                <span className="bg-red-100 text-red-600 px-2 py-1 rounded text-sm font-semibold">
+                  Save <Price amount={product.compareAtPrice - product.price} />
                 </span>
               )}
             </div>

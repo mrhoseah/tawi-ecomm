@@ -45,7 +45,7 @@ export async function POST(
 
   try {
     const body = await request.json();
-    const { rating, title, comment } = body;
+    const { rating, title, comment, images } = body;
 
     // Check if user already reviewed this product
     const existing = await prisma.review.findUnique({
@@ -64,15 +64,34 @@ export async function POST(
       );
     }
 
+    const imageUrls =
+      Array.isArray(images)
+        ? images
+            .filter((u: unknown) => typeof u === "string" && u.trim() !== "")
+            .slice(0, 4)
+        : [];
+
+    // Check if user has ever ordered this product (for verified badge)
+    const userId = (session.user as any).id as string;
+    const hasOrder = await prisma.orderItem.findFirst({
+      where: {
+        productId: id,
+        order: {
+          userId,
+        },
+      },
+    });
+
     // Create review
     const review = await prisma.review.create({
       data: {
         productId: id,
-        userId: (session.user as any).id,
+        userId,
         rating,
         title: title || null,
         comment: comment || null,
-        verified: true, // Mark as verified if user purchased
+        verified: Boolean(hasOrder),
+        images: imageUrls,
       },
     });
 

@@ -10,6 +10,9 @@ import ProductViewTracker from "@/components/ProductViewTracker";
 import ProductReviews from "@/components/ProductReviews";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import Link from "next/link";
+import ProductShareButton from "@/components/ProductShareButton";
+import Price from "@/components/Price";
+import { DEFAULT_PRINTING_COST } from "@/lib/constants";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -40,6 +43,26 @@ async function getProduct(slug: string) {
   }
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<import("next").Metadata> {
+  const { slug } = await params;
+  const product = await prisma.product.findUnique({
+    where: { slug, active: true },
+  });
+  if (!product) return { title: "Product Not Found" };
+  const desc = product.shortDescription || product.description?.slice(0, 160) || `${product.name} - Tawi Shop`;
+  const ogImage = product.images?.[0] ? (product.images[0].startsWith("http") ? product.images[0] : undefined) : undefined;
+  return {
+    title: product.name,
+    description: desc,
+    openGraph: { images: ogImage ? [ogImage] : undefined },
+    twitter: { card: "summary_large_image", images: ogImage ? [ogImage] : undefined },
+  };
+}
+
 async function getRelatedProducts(category: string, currentProductId: string) {
   try {
     const products = await prisma.product.findMany({
@@ -60,9 +83,9 @@ async function getRelatedProducts(category: string, currentProductId: string) {
 export default async function ProductPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const slug = params.slug;
+  const { slug } = await params;
   
   if (!slug) {
     notFound();
@@ -98,27 +121,31 @@ export default async function ProductPage({
                   {product.category}
                 </span>
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-4">
-                {product.name}
-              </h1>
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <h1 className="text-3xl md:text-4xl font-bold">
+                  {product.name}
+                </h1>
+                <ProductShareButton slug={product.slug} name={product.name} />
+              </div>
 
               <div className="mb-6">
-                {product.compareAtPrice ? (
-                  <div className="flex items-center gap-4">
-                    <span className="text-3xl font-bold text-red-600">
-                      ${product.price.toFixed(2)}
+                <div className="flex items-center gap-4 flex-wrap">
+                  <Price
+                    amount={product.price}
+                    compareAt={product.compareAtPrice}
+                    showCompare
+                    className="text-3xl font-bold"
+                  />
+                  {product.compareAtPrice && product.compareAtPrice > product.price && (
+                    <span className="bg-red-100 text-red-600 px-2.5 py-1 rounded-md text-sm font-semibold">
+                      Save <Price amount={product.compareAtPrice - product.price} />
                     </span>
-                    <span className="text-xl text-gray-400 line-through">
-                      ${product.compareAtPrice.toFixed(2)}
-                    </span>
-                    <span className="bg-red-100 text-red-600 px-2 py-1 rounded text-sm font-semibold">
-                      Save ${(product.compareAtPrice - product.price).toFixed(2)}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-3xl font-bold text-gray-900">
-                    ${product.price.toFixed(2)}
-                  </span>
+                  )}
+                </div>
+                {product.printable && (
+                  <p className="mt-2 text-sm text-gray-500">
+                    Custom name printing available (+<Price amount={product.printingCost ?? DEFAULT_PRINTING_COST} />)
+                  </p>
                 )}
               </div>
 
@@ -143,14 +170,14 @@ export default async function ProductPage({
                 </div>
               )}
 
-              <div className="border-t border-b py-6 mb-6">
+              <section className="border-t border-b py-6 mb-6" aria-labelledby="add-to-cart-heading">
+                <h2 id="add-to-cart-heading" className="sr-only">Add to cart</h2>
                 <AddToCartButton
                   product={product}
-                  disabled={product.stock === 0}
                 />
                 {product.stock === 0 && (
-                  <p className="text-red-600 text-sm mt-2">
-                    This item is currently out of stock
+                  <p className="text-blue-600 text-sm mt-2">
+                    This item is available for pre-order. It will ship as soon as stock arrives.
                   </p>
                 )}
                 {product.stock > 0 && product.stock < 10 && (
@@ -158,7 +185,7 @@ export default async function ProductPage({
                     Only {product.stock} left in stock!
                   </p>
                 )}
-              </div>
+              </section>
 
               <div className="space-y-4 text-sm text-gray-600">
                 <div className="flex items-start">
@@ -169,12 +196,12 @@ export default async function ProductPage({
                   <span className="font-medium w-32">Availability:</span>
                   <span
                     className={
-                      product.stock > 0 ? "text-green-600" : "text-red-600"
+                      product.stock > 0 ? "text-green-600" : "text-blue-600"
                     }
                   >
                     {product.stock > 0
                       ? `In Stock (${product.stock} available)`
-                      : "Out of Stock"}
+                      : "Pre-order"}
                   </span>
                 </div>
                 {product.sizes.length > 0 && (

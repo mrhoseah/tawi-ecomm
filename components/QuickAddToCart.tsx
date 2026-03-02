@@ -42,10 +42,6 @@ export default function QuickAddToCart({
     e.preventDefault();
     e.stopPropagation();
 
-    if ((product.stock ?? 0) === 0) {
-      return;
-    }
-
     setIsAdding(true);
 
     // Use first available size and color, or defaults
@@ -88,18 +84,12 @@ export default function QuickAddToCart({
     setTimeout(() => setShowSuccess(false), 2000);
   };
 
-  if (product.stock === 0) {
-    return (
-      <span className="text-xs text-gray-500">Out of Stock</span>
-    );
-  }
-
   if (variant === "icon") {
     return (
       <button
         onClick={handleQuickAdd}
         disabled={isAdding || showSuccess}
-        className={`absolute top-2 right-2 p-2 rounded-full shadow-lg transition-all z-10 ${
+        className={`shrink-0 p-2 rounded-full shadow-lg transition-all ${
           showSuccess
             ? "bg-green-500 text-white"
             : "bg-white hover:bg-red-600 hover:text-white"

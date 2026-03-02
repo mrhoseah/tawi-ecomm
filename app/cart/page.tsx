@@ -10,6 +10,7 @@ import { Minus, Plus, Trash2, ShoppingBag, Heart } from "lucide-react";
 import Link from "next/link";
 import { saveForLater, removeFromSaveForLater, getSaveForLater } from "@/lib/saveForLater";
 import CouponInput from "@/components/CouponInput";
+import Price from "@/components/Price";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useToast } from "@/components/Toast";
 
@@ -22,6 +23,7 @@ export default function CartPage() {
   const [savedItems, setSavedItems] = useState<any[]>([]);
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [discount, setDiscount] = useState(0);
+  const [couponFreeShipping, setCouponFreeShipping] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -85,17 +87,20 @@ export default function CartPage() {
 
   const subtotal = getTotal();
   const tax = (subtotal - discount) * 0.1; // 10% tax
-  const shipping = subtotal > 50 ? 0 : 10;
+  const baseShipping = subtotal > 50 ? 0 : 10;
+  const shipping = couponFreeShipping ? 0 : baseShipping;
   const total = subtotal - discount + tax + shipping;
 
-  const handleCouponApply = (code: string, discountAmount: number) => {
+  const handleCouponApply = (code: string, discountAmount: number, freeShipping?: boolean) => {
     setAppliedCoupon(code);
     setDiscount(discountAmount);
+    setCouponFreeShipping(!!freeShipping);
   };
 
   const handleCouponRemove = () => {
     setAppliedCoupon(null);
     setDiscount(0);
+    setCouponFreeShipping(false);
   };
 
   return (
@@ -145,16 +150,23 @@ export default function CartPage() {
                       </p>
                     )}
                     {item.color && (
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-sm text-gray-600 mb-1">
                         Color: <span className="font-medium capitalize">{item.color}</span>
+                      </p>
+                    )}
+                    {(item.printedName || item.printedNumber) && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        Printing: <span className="font-medium">
+                          {[item.printedName, item.printedNumber && `#${item.printedNumber}`].filter(Boolean).join(" ")}
+                        </span>
                       </p>
                     )}
                     <div className="mb-4">
                       <p className="text-lg font-bold text-red-600">
-                        ${item.price.toFixed(2)} each
+                        <Price amount={item.price} /> each
                       </p>
                       <p className="text-sm text-gray-600">
-                        Subtotal: ${(item.price * item.quantity).toFixed(2)}
+                        Subtotal: <Price amount={item.price * item.quantity} />
                       </p>
                     </div>
 
@@ -166,7 +178,9 @@ export default function CartPage() {
                               item.productId,
                               item.quantity - 1,
                               item.size,
-                              item.color
+                              item.color,
+                              item.printedName,
+                              item.printedNumber
                             )
                           }
                           className="px-3 py-1 hover:bg-gray-100"
@@ -182,7 +196,9 @@ export default function CartPage() {
                               item.productId,
                               item.quantity + 1,
                               item.size,
-                              item.color
+                              item.color,
+                              item.printedName,
+                              item.printedNumber
                             )
                           }
                           className="px-3 py-1 hover:bg-gray-100"
@@ -202,8 +218,11 @@ export default function CartPage() {
                                       image: item.image,
                                       size: item.size,
                                       color: item.color,
+                                      printedName: item.printedName,
+                                      printedNumber: item.printedNumber,
+                                      printingCost: item.printingCost,
                                     });
-                                    removeItem(item.productId, item.size, item.color);
+                                    removeItem(item.productId, item.size, item.color, item.printedName, item.printedNumber);
                                     setSavedItems(getSaveForLater());
                                     showToast("Item saved for later", "success");
                                   }}
@@ -215,7 +234,7 @@ export default function CartPage() {
                                 </button>
                         <button
                           onClick={() =>
-                            removeItem(item.productId, item.size, item.color)
+                            removeItem(item.productId, item.size, item.color, item.printedName, item.printedNumber)
                           }
                           className="text-red-600 hover:text-red-700 flex items-center gap-1"
                         >
@@ -268,8 +287,13 @@ export default function CartPage() {
                           {savedItem.color && (
                             <p className="text-sm text-gray-600">Color: {savedItem.color}</p>
                           )}
+                          {(savedItem.printedName || savedItem.printedNumber) && (
+                            <p className="text-sm text-gray-600">
+                              Printing: {[savedItem.printedName, savedItem.printedNumber && `#${savedItem.printedNumber}`].filter(Boolean).join(" ")}
+                            </p>
+                          )}
                           <p className="text-lg font-bold text-red-600 mt-2">
-                            ${savedItem.price.toFixed(2)}
+                            <Price amount={savedItem.price} />
                           </p>
                         </div>
                         <div className="flex flex-col gap-2">
@@ -284,11 +308,16 @@ export default function CartPage() {
                                 quantity: 1,
                                 size: savedItem.size,
                                 color: savedItem.color,
+                                printedName: savedItem.printedName,
+                                printedNumber: savedItem.printedNumber,
+                                printingCost: savedItem.printingCost,
                               });
                               removeFromSaveForLater(
                                 savedItem.productId,
                                 savedItem.size,
-                                savedItem.color
+                                savedItem.color,
+                                savedItem.printedName,
+                                savedItem.printedNumber
                               );
                               setSavedItems(getSaveForLater());
                             }}
@@ -301,7 +330,9 @@ export default function CartPage() {
                               removeFromSaveForLater(
                                 savedItem.productId,
                                 savedItem.size,
-                                savedItem.color
+                                savedItem.color,
+                                savedItem.printedName,
+                                savedItem.printedNumber
                               );
                               setSavedItems(getSaveForLater());
                             }}
@@ -328,23 +359,25 @@ export default function CartPage() {
                     onApply={handleCouponApply}
                     appliedCoupon={appliedCoupon}
                     onRemove={handleCouponRemove}
+                    subtotal={subtotal}
+                    userId={session?.user?.id ?? null}
                   />
                 </div>
 
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-gray-600">
                     <span>Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span><Price amount={subtotal} /></span>
                   </div>
                   {discount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Discount</span>
-                      <span>-${discount.toFixed(2)}</span>
+                      <span>-<Price amount={discount} /></span>
                     </div>
                   )}
                   <div className="flex justify-between text-gray-600">
                     <span>Tax</span>
-                    <span>${tax.toFixed(2)}</span>
+                    <span><Price amount={tax} /></span>
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>Shipping</span>
@@ -352,18 +385,18 @@ export default function CartPage() {
                       {shipping === 0 ? (
                         <span className="text-green-600">Free</span>
                       ) : (
-                        `$${shipping.toFixed(2)}`
+                        <Price amount={shipping} />
                       )}
                     </span>
                   </div>
                   {subtotal < 50 && (
                     <p className="text-sm text-gray-500">
-                      Add ${(50 - subtotal).toFixed(2)} more for free shipping
+                      Add <Price amount={50 - subtotal} /> more for free shipping
                     </p>
                   )}
                   <div className="border-t pt-3 flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span><Price amount={total} /></span>
                   </div>
                 </div>
 
@@ -380,7 +413,7 @@ export default function CartPage() {
                       Sign in to checkout
                     </p>
                     <Link
-                      href="/auth/signin?callbackUrl=/checkout"
+                      href="/sign-in?callbackUrl=/checkout"
                       className="block w-full text-center px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
                     >
                       Sign In to Checkout

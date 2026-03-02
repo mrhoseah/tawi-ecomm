@@ -21,7 +21,7 @@ export default function SortDropdown() {
     <select
       value={currentSort}
       onChange={(e) => handleSortChange(e.target.value)}
-      className="border border-gray-300 rounded-lg px-4 py-2 text-sm"
+      className="border border-gray-200 rounded-lg px-4 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 min-w-[160px]"
     >
       <option value="newest">Newest</option>
       <option value="price-asc">Price: Low to High</option>

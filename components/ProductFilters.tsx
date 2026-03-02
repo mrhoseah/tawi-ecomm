@@ -33,20 +33,21 @@ export default function ProductFilters({
   const [isInitialMount, setIsInitialMount] = useState(true);
 
   useEffect(() => {
-    // Mark that initial mount is complete
     setIsInitialMount(false);
   }, []);
 
   const applyFilters = useCallback(() => {
     if (isInitialMount) return;
-    
+
     const params = new URLSearchParams();
-    
+
     if (searchParams.get("search")) {
       params.set("search", searchParams.get("search")!);
     }
-    
+
     if (filters.category) params.set("category", filters.category);
+    const team = searchParams.get("team");
+    if (team) params.set("team", team);
     if (filters.size) params.set("size", filters.size);
     if (filters.color) params.set("color", filters.color);
     if (filters.minPrice) params.set("minPrice", filters.minPrice);
@@ -61,26 +62,15 @@ export default function ProductFilters({
     setIsMobileOpen(false);
   }, [filters, searchParams, router, isInitialMount]);
 
-  // Auto-apply filters when they change (with debounce for price inputs)
   useEffect(() => {
     if (isInitialMount) return;
-
-    const timeoutId = setTimeout(() => {
-      applyFilters();
-    }, 300); // Quick response for immediate filters
-
-    return () => clearTimeout(timeoutId);
+    applyFilters();
   }, [filters.category, filters.size, filters.color, filters.inStock, filters.onSale, applyFilters, isInitialMount]);
 
-  // Separate effect for price with longer debounce
   useEffect(() => {
     if (isInitialMount) return;
-
-    const timeoutId = setTimeout(() => {
-      applyFilters();
-    }, 800); // Longer debounce for price inputs
-
-    return () => clearTimeout(timeoutId);
+    const t = setTimeout(applyFilters, 800);
+    return () => clearTimeout(t);
   }, [filters.minPrice, filters.maxPrice, applyFilters, isInitialMount]);
 
   const clearFilters = () => {
@@ -105,6 +95,7 @@ export default function ProductFilters({
 
   const hasActiveFilters =
     filters.category ||
+    searchParams.get("team") ||
     filters.size ||
     filters.color ||
     filters.minPrice ||
@@ -114,9 +105,9 @@ export default function ProductFilters({
 
   const FilterContent = () => (
     <div className="space-y-6">
-      {/* Categories */}
+      {/* Category */}
       <div>
-        <h3 className="font-medium mb-3">Categories</h3>
+        <h3 className="font-medium mb-3">Category</h3>
         <div className="space-y-2">
           <label className="flex items-center">
             <input
@@ -148,29 +139,23 @@ export default function ProductFilters({
       {/* Price Range */}
       <div>
         <h3 className="font-medium mb-3">Price Range</h3>
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <input
-              type="number"
-              placeholder="Min"
-              value={filters.minPrice}
-              onChange={(e) =>
-                setFilters({ ...filters, minPrice: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              min={0}
-            />
-            <input
-              type="number"
-              placeholder="Max"
-              value={filters.maxPrice}
-              onChange={(e) =>
-                setFilters({ ...filters, maxPrice: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              min={0}
-            />
-          </div>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            placeholder="Min"
+            value={filters.minPrice}
+            onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            min={0}
+          />
+          <input
+            type="number"
+            placeholder="Max"
+            value={filters.maxPrice}
+            onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            min={0}
+          />
         </div>
       </div>
 
@@ -228,7 +213,7 @@ export default function ProductFilters({
         </div>
       )}
 
-      {/* Stock Status */}
+      {/* Availability */}
       <div>
         <h3 className="font-medium mb-3">Availability</h3>
         <label className="flex items-center">
@@ -260,7 +245,6 @@ export default function ProductFilters({
         </label>
       </div>
 
-      {/* Clear Button - Only show if filters are active */}
       {hasActiveFilters && (
         <div className="pt-4 border-t">
           <button
@@ -276,10 +260,9 @@ export default function ProductFilters({
 
   return (
     <>
-      {/* Mobile Filter Button */}
       <button
         onClick={() => setIsMobileOpen(true)}
-        className="lg:hidden flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg mb-4"
+        className="lg:hidden flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl shadow-sm mb-4"
       >
         <Filter className="h-5 w-5" />
         <span>Filters</span>
@@ -290,7 +273,6 @@ export default function ProductFilters({
         )}
       </button>
 
-      {/* Mobile Filter Overlay */}
       {isMobileOpen && (
         <div className="lg:hidden fixed inset-0 bg-black/50 z-50">
           <div className="bg-white h-full w-80 max-w-[90vw] overflow-y-auto p-6">
@@ -310,8 +292,7 @@ export default function ProductFilters({
         </div>
       )}
 
-      {/* Desktop Filters */}
-      <div className="hidden lg:block bg-white p-6 rounded-lg shadow-sm sticky top-20">
+      <div className="hidden lg:block bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-24">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-lg">Filters</h2>
           {hasActiveFilters && (
@@ -328,4 +309,3 @@ export default function ProductFilters({
     </>
   );
 }
-

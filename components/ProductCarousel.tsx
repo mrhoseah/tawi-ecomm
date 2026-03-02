@@ -80,14 +80,18 @@ export default function ProductCarousel({
   }
 
   return (
-    <section className="py-16 bg-gray-50">
+    <div className="py-0">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">{title}</h2>
-          {subtitle && (
-            <p className="text-gray-600 text-lg">{subtitle}</p>
-          )}
-        </div>
+        {(title || subtitle) && (
+          <div className="text-center mb-12">
+            {title && (
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">{title}</h2>
+            )}
+            {subtitle && (
+              <p className="text-gray-600 text-lg">{subtitle}</p>
+            )}
+          </div>
+        )}
 
         <div className="relative">
           {/* Carousel Container */}
@@ -230,7 +234,7 @@ export default function ProductCarousel({
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 

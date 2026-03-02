@@ -18,7 +18,7 @@ export default function WishlistPage() {
 
   useEffect(() => {
     if (!session) {
-      router.push("/auth/signin?callbackUrl=/wishlist");
+      router.push("/sign-in?callbackUrl=/wishlist");
       return;
     }
 

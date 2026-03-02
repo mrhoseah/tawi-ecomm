@@ -4,6 +4,7 @@ import Link from "next/link";
 import QuickAddToCart from "./QuickAddToCart";
 import WishlistButton from "./WishlistButton";
 import QuickViewButton from "./QuickViewButton";
+import Price from "./Price";
 import { Star, Badge } from "lucide-react";
 
 interface Product {
@@ -33,7 +34,7 @@ interface ProductCardProps {
 export default function ProductCard({ product, view = "grid" }: ProductCardProps) {
   if (view === "list") {
     return (
-      <div className="group bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+      <div className="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-300">
         <div className="flex flex-col sm:flex-row gap-4 p-4">
           <Link
             href={`/product/${product.slug}`}
@@ -90,20 +91,12 @@ export default function ProductCard({ product, view = "grid" }: ProductCardProps
               </span>
             </div>
             <div className="mb-4">
-              {product.compareAtPrice ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-red-600 font-bold text-xl">
-                    ${product.price.toFixed(2)}
-                  </span>
-                  <span className="text-gray-400 line-through text-sm">
-                    ${product.compareAtPrice.toFixed(2)}
-                  </span>
-                </div>
-              ) : (
-                <span className="text-gray-900 font-bold text-xl">
-                  ${product.price.toFixed(2)}
-                </span>
-              )}
+              <Price
+                amount={product.price}
+                compareAt={product.compareAtPrice}
+                showCompare
+                className={product.compareAtPrice ? "text-red-600 font-bold text-xl" : "text-gray-900 font-bold text-xl"}
+              />
             </div>
             <div className="flex items-center gap-2">
               <QuickAddToCart product={product} variant="button" className="text-sm" />
@@ -116,7 +109,7 @@ export default function ProductCard({ product, view = "grid" }: ProductCardProps
   }
 
   return (
-    <div className="group bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow">
+    <div className="group relative bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-gray-200 transition-all duration-300">
       <Link href={`/product/${product.slug}`} className="block">
           <div className="aspect-square bg-gray-100 relative overflow-hidden rounded-t-lg">
             {product.images[0] ? (
@@ -195,9 +188,16 @@ export default function ProductCard({ product, view = "grid" }: ProductCardProps
               </span>
             )}
           </div>
-          <span className="text-sm text-gray-500 capitalize">
-            {product.category}
-          </span>
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-sm text-gray-500 capitalize">
+              {product.category}
+            </span>
+            {product.stock === 0 && (
+              <span className="text-xs font-semibold text-blue-600">
+                Pre-order
+              </span>
+            )}
+          </div>
         </div>
         <QuickAddToCart
           product={product}

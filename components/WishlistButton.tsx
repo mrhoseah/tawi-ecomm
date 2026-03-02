@@ -17,52 +17,68 @@ export default function WishlistButton({
   const { data: session } = useSession();
   const { showToast } = useToast();
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Load wishlist from localStorage
-    const wishlist = JSON.parse(
-      localStorage.getItem("wishlist") || "[]"
-    ) as string[];
-    setIsWishlisted(wishlist.includes(productId));
-  }, [productId]);
+    if (session) {
+      fetch("/api/wishlist")
+        .then((res) => res.json())
+        .then((data) => {
+          const ids = (data.items || []).map((i: any) => i.productId);
+          setIsWishlisted(ids.includes(productId));
+        })
+        .catch(() => {});
+    } else {
+      const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]") as string[];
+      setIsWishlisted(wishlist.includes(productId));
+    }
+  }, [productId, session]);
 
   const toggleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setLoading(true);
 
-    const wishlist = JSON.parse(
-      localStorage.getItem("wishlist") || "[]"
-    ) as string[];
-
-    if (isWishlisted) {
-      const updated = wishlist.filter((id) => id !== productId);
-      localStorage.setItem("wishlist", JSON.stringify(updated));
-      setIsWishlisted(false);
-      showToast("Removed from wishlist", "success");
-    } else {
-      wishlist.push(productId);
-      localStorage.setItem("wishlist", JSON.stringify(wishlist));
-      setIsWishlisted(true);
-      showToast("Added to wishlist", "success");
-    }
-
-    // Sync with server if logged in
     if (session) {
       try {
-        await fetch("/api/wishlist", {
-          method: isWishlisted ? "DELETE" : "POST",
+        const method = isWishlisted ? "DELETE" : "POST";
+        const res = await fetch("/api/wishlist", {
+          method,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ productId }),
         });
-      } catch (error) {
-        console.error("Error syncing wishlist:", error);
+        if (res.ok) {
+          setIsWishlisted(!isWishlisted);
+          showToast(isWishlisted ? "Removed from wishlist" : "Added to wishlist", "success");
+        } else {
+          showToast("Failed to update wishlist", "error");
+        }
+      } catch {
+        showToast("Failed to update wishlist", "error");
+      } finally {
+        setLoading(false);
       }
+    } else {
+      const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]") as string[];
+      if (isWishlisted) {
+        const updated = wishlist.filter((id) => id !== productId);
+        localStorage.setItem("wishlist", JSON.stringify(updated));
+        setIsWishlisted(false);
+        showToast("Removed from wishlist", "success");
+      } else {
+        wishlist.push(productId);
+        localStorage.setItem("wishlist", JSON.stringify(wishlist));
+        setIsWishlisted(true);
+        showToast("Added to wishlist", "success");
+      }
+      setLoading(false);
     }
   };
 
   return (
     <button
       onClick={toggleWishlist}
+      disabled={loading}
       className={`p-2 rounded-full transition-all ${
         isWishlisted
           ? "bg-red-600 text-white"

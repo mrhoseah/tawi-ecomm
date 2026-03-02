@@ -4,16 +4,26 @@ import { useState } from "react";
 import { Tag, X, Loader2 } from "lucide-react";
 import { useToast } from "./Toast";
 
+export interface CouponApplyResult {
+  code: string;
+  discount: number;
+  freeShipping: boolean;
+}
+
 interface CouponInputProps {
-  onApply: (code: string, discount: number) => void;
+  onApply: (code: string, discount: number, freeShipping?: boolean) => void;
   appliedCoupon?: string | null;
   onRemove: () => void;
+  subtotal?: number;
+  userId?: string | null;
 }
 
 export default function CouponInput({
   onApply,
   appliedCoupon,
   onRemove,
+  subtotal = 0,
+  userId = null,
 }: CouponInputProps) {
   const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +37,12 @@ export default function CouponInput({
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/coupons/validate?code=${code}`);
+      const params = new URLSearchParams({
+        code: code.trim(),
+        subtotal: String(subtotal),
+      });
+      if (userId) params.set("userId", userId);
+      const response = await fetch(`/api/coupons/validate?${params}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -35,7 +50,7 @@ export default function CouponInput({
         return;
       }
 
-      onApply(code, data.discount);
+      onApply(code, data.discount ?? 0, data.freeShipping ?? false);
       setCode("");
       showToast(`Coupon "${code}" applied successfully!`, "success");
     } catch (error) {

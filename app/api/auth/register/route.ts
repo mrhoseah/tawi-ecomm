@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { validatePassword, validateEmail } from "@/lib/password-validation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,9 +15,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const emailTrimmed = String(email).trim().toLowerCase();
+    if (!validateEmail(emailTrimmed)) {
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400 }
+      );
+    }
+
+    const passwordResult = validatePassword(String(password));
+    if (!passwordResult.valid) {
+      return NextResponse.json(
+        { error: passwordResult.errors[0] || "Password does not meet security requirements" },
+        { status: 400 }
+      );
+    }
+
+    if (String(name).trim().length > 100) {
+      return NextResponse.json(
+        { error: "Name is too long" },
+        { status: 400 }
+      );
+    }
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: emailTrimmed },
     });
 
     if (existingUser) {
@@ -32,8 +56,8 @@ export async function POST(request: NextRequest) {
     // Create user
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: String(name).trim().slice(0, 100),
+        email: emailTrimmed,
         password: hashedPassword,
       },
     });

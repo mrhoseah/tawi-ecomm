@@ -11,23 +11,26 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  password      String?
-  image         String?
-  phone         String?
-  role          String    @default("customer") // customer, admin
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  accounts      Account[]
-  sessions      Session[]
-  cart          CartItem[]
-  orders        Order[]
-  addresses     Address[]
-  reviews       Review[]
-  wishlistItems WishlistItem[]
+  id                String    @id @default(cuid())
+  name              String?
+  email             String    @unique
+  emailVerified     DateTime?
+  password          String?
+  image             String?
+  phone             String?
+  role              String    @default("customer") // customer, admin, support
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  accounts          Account[]
+  sessions          Session[]
+  cart              CartItem[]
+  orders            Order[]
+  addresses         Address[]
+  reviews           Review[]
+  wishlistItems     WishlistItem[]
+  matchAccesses     MatchAccess[]
+  orderReturns      OrderReturn[]
+  preferredTeams    UserPreferredTeam[]
 }
 
 model Account {
@@ -67,6 +70,29 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+model AdminInvite {
+  id          String    @id @default(cuid())
+  email       String
+  token       String    @unique
+  role        String    @default("admin")  // admin, support
+  invitedById String?
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?   @db.Text
+  imageUrl    String?
+  sortOrder   Int       @default(0)
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 model Product {
   id            String   @id @default(cuid())
   name          String
@@ -75,6 +101,8 @@ model Product {
   shortDescription String? @db.Text
   price         Float
   compareAtPrice Float?
+  printable     Boolean  @default(false)  // Personalization (name/number) available
+  printingCost  Float    @default(0)      // Additional cost for printing
   sku           String?  @unique
   category      String
   tags          String[]
@@ -90,6 +118,7 @@ model Product {
   onSale        Boolean  @default(false)
   newArrival    Boolean  @default(false)
   bestSeller    Boolean  @default(false)
+  freeShippingEligible Boolean @default(true) // If false, product does not qualify for free shipping threshold
   rating        Float    @default(0)
   reviewCount   Int      @default(0)
   viewCount     Int      @default(0)
@@ -108,6 +137,7 @@ model Review {
   rating    Int      // 1-5
   title     String?
   comment   String?  @db.Text
+  images    String[] @default([])
   verified  Boolean  @default(false)
   helpful   Int      @default(0)
   createdAt DateTime @default(now())
@@ -132,20 +162,23 @@ model WishlistItem {
 }
 
 model Coupon {
-  id            String   @id @default(cuid())
-  code          String   @unique
-  type          String   // percentage, fixed
-  value         Float
-  minPurchase   Float?   @default(0)
-  maxDiscount  Float?
-  usageLimit    Int?
-  usedCount     Int      @default(0)
-  validFrom     DateTime
-  validUntil    DateTime
-  active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  orders        Order[]
+  id                 String   @id @default(cuid())
+  code               String   @unique
+  type               String   // percentage, fixed, free_shipping
+  value              Float    @default(0)  // % off, $ off, or 0 for free_shipping
+  minPurchase        Float?   @default(0)
+  maxDiscount        Float?
+  usageLimit         Int?
+  usageLimitPerUser  Int?     // Max uses per customer (null = unlimited)
+  usedCount          Int      @default(0)
+  validFrom          DateTime
+  validUntil         DateTime
+  freeShipping       Boolean  @default(false)  // Free shipping discount
+  description        String?  @db.Text  // Admin note
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  orders             Order[]
 }
 
 model ShippingMethod {
@@ -162,19 +195,37 @@ model ShippingMethod {
 }
 
 model CartItem {
-  id        String   @id @default(cuid())
-  userId    String
-  productId String
-  quantity  Int      @default(1)
-  size      String?
-  color     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  userId       String
+  productId    String
+  quantity     Int      @default(1)
+  size         String?
+  color        String?
+  printedName   String   @default("")  // Custom name on back ("" = no printing)
+  printedNumber String   @default("")  // Custom number on back
+  printingCost Float    @default(0) // Cost for personalization
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, productId, size, color])
+  @@unique([userId, productId, size, color, printedName, printedNumber])
   @@index([userId])
+}
+
+model MpesaStkRequest {
+  id                 String   @id @default(cuid())
+  checkoutRequestId  String   @unique
+  orderNumber        String
+  amount             Float
+  phone              String?
+  status             String   @default("pending")  // pending, completed, failed
+  mpesaReceiptNumber String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([checkoutRequestId])
+  @@index([orderNumber])
 }
 
 model Order {
@@ -193,13 +244,17 @@ model Order {
   billingAddress  Json?
   shippingMethod  String?
   trackingNumber  String?
-  notes           String?     @db.Text
+  trackingCarrier String?   // DHL, FedEx, UPS, etc. for tracking links
+  shippedAt       DateTime? // When order was shipped
+  notes           String?   @db.Text
+  paypalCaptureId String?   // For PayPal refunds
   couponId        String?
   coupon          Coupon?     @relation(fields: [couponId], references: [id])
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   items           OrderItem[]
+  returns         OrderReturn[]
 
   @@index([userId])
   @@index([orderNumber])
@@ -207,16 +262,185 @@ model Order {
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
-  orderId   String
-  productId String
-  quantity  Int
-  price     Float
-  size      String?
-  color     String?
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id            String   @id @default(cuid())
+  orderId       String
+  productId     String
+  quantity      Int
+  price         Float
+  size          String?
+  color         String?
+  printedName   String?
+  printedNumber String?
+  printingCost  Float    @default(0)
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  @@index([orderId])
+}
+
+model StreamingPlan {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?  @db.Text
+  price       Float
+  interval    String   // month, 6months, year
+  features    String[] // list of features
+  popular     Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FeaturedMatch {
+  id        String   @id  // singleton: use "default"
+  imageUrl  String?
+  videoUrl  String?  // YouTube link
+  title     String?
+  updatedAt DateTime @updatedAt
+}
+
+model Match {
+  id          String    @id @default(cuid())
+  homeTeam    String
+  awayTeam    String
+  matchDate   DateTime
+  venue       String?
+  status      String    @default("scheduled") // scheduled, live, finished
+  accessPrice Float     @default(0)  // price to buy match access
+  videoUrl    String?   // stream URL (shown after purchase)
+  imageUrl    String?   // hero image when featured on landing page
+  featured    Boolean   @default(false)  // show on landing page hero
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  accesses    MatchAccess[]
+}
+
+model MatchAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  matchId   String
+  amount    Float
+  paidAt    DateTime @default(now())
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, matchId])
+  @@index([userId])
+  @@index([matchId])
+}
+
+model Team {
+  id               String             @id @default(cuid())
+  name             String
+  slug             String             @unique
+  logoUrl          String?
+  sportType        String             // football, basketball, hockey, etc.
+  description      String?            @db.Text
+  active           Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  preferredByUsers UserPreferredTeam[]
+}
+
+model UserPreferredTeam {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  @@unique([userId, teamId])
+  @@index([userId])
+  @@index([teamId])
+}
+
+model News {
+  id          String   @id @default(cuid())
+  title       String
+  excerpt     String?  @db.Text
+  content     String   @db.Text
+  teams       String[] // team names for badge tags
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SeoSettings {
+  id              String   @id  // singleton: use "default"
+  siteName        String?
+  defaultMetaDesc String?  @map("default_meta_desc")
+  metaKeywords    String?  @map("meta_keywords") @db.Text
+  ogImage         String?  @map("og_image")
+  googleTagId     String?  @map("google_tag_id")
+  facebookPixelId String?  @map("facebook_pixel_id")
+  twitterHandle   String?  @map("twitter_handle")
+  canonicalBase   String?  @map("canonical_base")
+  updatedAt       DateTime @updatedAt
+}
+
+model PaymentSettings {
+  id            String   @id  // singleton: use "default"
+  bankName      String?
+  accountName   String?
+  accountNumber String?
+  branchName    String?
+  swiftCode     String?
+  bankCode      String?
+  instructions  String?  @db.Text
+  updatedAt     DateTime @updatedAt
+}
+
+model CurrencySettings {
+  id                    String   @id  // singleton: use "default"
+  baseCurrency          String?  @default("KES")  // e.g. KES (DB/store currency)
+  defaultDisplayCurrency String? @default("KES")  // default for frontend
+  exchangeRateApiUrl    String?  @db.Text  // e.g. https://api.exchangerate-api.com/v4/latest
+  exchangeRateApiKey    String?  // optional API key
+  exchangeRateFallback  Float?   // fallback rate when API fails (KES→USD e.g. 0.0077)
+  updatedAt             DateTime @updatedAt
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String   @db.Text
+  answer    String   @db.Text
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Page {
+  id        String   @id @default(cuid())
+  slug      String   @unique  // privacy-policy, about-us, terms-of-service
+  title     String
+  content   String   @db.Text  // HTML from WYSIWYG
+  updatedAt DateTime @updatedAt
+}
+
+model ContactSubmission {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String?
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+model OrderReturn {
+  id          String   @id @default(cuid())
+  orderId     String
+  userId      String
+  reason      String   @db.Text
+  status      String   @default("pending")  // pending, approved, rejected, completed
+  notes       String?  @db.Text
+  requestedAt DateTime @default(now())
+  resolvedAt  DateTime?
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([orderId])  // one return per order
+  @@index([userId])
   @@index([orderId])
 }
 
