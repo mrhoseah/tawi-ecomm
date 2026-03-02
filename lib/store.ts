@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 export interface CartItem {
   productId: string;
@@ -25,70 +25,106 @@ interface CartStore {
   getItemCount: () => number;
 }
 
-export const useCartStore = create<CartStore>()(
-  persist(
-    (set, get) => ({
-      items: [],
-      addItem: (item) => {
-        const items = get().items;
-        const existingIndex = items.findIndex(
-          (i) =>
-            i.productId === item.productId &&
-            i.size === item.size &&
-            i.color === item.color &&
-            (i.printedName || "") === (item.printedName || "") &&
-            (i.printedNumber || "") === (item.printedNumber || "")
-        );
-
-        if (existingIndex >= 0) {
-          const updated = [...items];
-          updated[existingIndex].quantity += item.quantity;
-          set({ items: updated });
-        } else {
-          set({ items: [...items, item] });
-        }
-      },
-      removeItem: (productId, size, color, printedName, printedNumber) => {
-        set({
-          items: get().items.filter(
+const createCartStore = () =>
+  create<CartStore>()(
+    persist(
+      (set, get) => ({
+        items: [],
+        addItem: (item) => {
+          const items = get().items;
+          const existingIndex = items.findIndex(
             (i) =>
-              !(
-                i.productId === productId &&
-                (i.size || undefined) === (size || undefined) &&
-                (i.color || undefined) === (color || undefined) &&
-                (i.printedName || "") === (printedName || "") &&
-                (i.printedNumber || "") === (printedNumber || "")
-              )
+              i.productId === item.productId &&
+              i.size === item.size &&
+              i.color === item.color &&
+              (i.printedName || "") === (item.printedName || "") &&
+              (i.printedNumber || "") === (item.printedNumber || "")
+          );
+
+          if (existingIndex >= 0) {
+            const updated = [...items];
+            updated[existingIndex].quantity += item.quantity;
+            set({ items: updated });
+          } else {
+            set({ items: [...items, item] });
+          }
+        },
+        removeItem: (productId, size, color, printedName, printedNumber) => {
+          set({
+            items: get().items.filter(
+              (i) =>
+                !(
+                  i.productId === productId &&
+                  (i.size || undefined) === (size || undefined) &&
+                  (i.color || undefined) === (color || undefined) &&
+                  (i.printedName || "") === (printedName || "") &&
+                  (i.printedNumber || "") === (printedNumber || "")
+                )
+            ),
+          });
+        },
+        updateQuantity: (
+          productId,
+          quantity,
+          size,
+          color,
+          printedName,
+          printedNumber
+        ) => {
+          if (quantity <= 0) {
+            get().removeItem(productId, size, color, printedName, printedNumber);
+            return;
+          }
+          const items = get().items.map((i) =>
+            i.productId === productId &&
+            (i.size || undefined) === (size || undefined) &&
+            (i.color || undefined) === (color || undefined) &&
+            (i.printedName || "") === (printedName || "") &&
+            (i.printedNumber || "") === (printedNumber || "")
+              ? { ...i, quantity }
+              : i
+          );
+          set({ items });
+        },
+        clearCart: () => set({ items: [] }),
+        getTotal: () => {
+          return get().items.reduce(
+            (sum, item) => sum + item.price * item.quantity,
+            0
+          );
+        },
+        getItemCount: () => {
+          return get().items.reduce((sum, item) => sum + item.quantity, 0);
+        },
+      }),
+      {
+        name: "cart-storage",
+        storage:
+          typeof window !== "undefined"
+            ? createJSONStorage(() => localStorage)
+            : undefined,
+      }
+    )
+  );
+
+// On the server, avoid touching browser storage/localStorage entirely.
+// We create a non-persisted in-memory store instead.
+export const useCartStore =
+  typeof window === "undefined"
+    ? create<CartStore>()((set, get) => ({
+        items: [],
+        addItem: (item) =>
+          set({ items: [...get().items, item] }), // simple append on server
+        removeItem: () => set({ items: [] }),
+        updateQuantity: () => {},
+        clearCart: () => set({ items: [] }),
+        getTotal: () =>
+          get().items.reduce(
+            (sum, item) => sum + item.price * item.quantity,
+            0
           ),
-        });
-      },
-      updateQuantity: (productId, quantity, size, color, printedName, printedNumber) => {
-        if (quantity <= 0) {
-          get().removeItem(productId, size, color, printedName, printedNumber);
-          return;
-        }
-        const items = get().items.map((i) =>
-          i.productId === productId &&
-          (i.size || undefined) === (size || undefined) &&
-          (i.color || undefined) === (color || undefined) &&
-          (i.printedName || "") === (printedName || "") &&
-          (i.printedNumber || "") === (printedNumber || "")
-            ? { ...i, quantity }
-            : i
-        );
-        set({ items });
-      },
-      clearCart: () => set({ items: [] }),
-      getTotal: () => {
-        return get().items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      },
-      getItemCount: () => {
-        return get().items.reduce((sum, item) => sum + item.quantity, 0);
-      },
-    }),
-    {
-      name: 'cart-storage',
-    }
-  )
-);
+        getItemCount: () =>
+          get().items.reduce((sum, item) => sum + item.quantity, 0),
+      }))
+    : createCartStore();
 

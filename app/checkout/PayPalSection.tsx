@@ -1,11 +1,13 @@
 "use client";
 
-import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/store";
 import { useToast } from "@/components/Toast";
 
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
+
+type PayPalLib = typeof import("@paypal/react-paypal-js");
 
 type PayPalSectionProps = {
   paypalOrderId: string;
@@ -23,8 +25,25 @@ export default function PayPalSection({
   const router = useRouter();
   const { clearCart } = useCartStore();
   const { showToast } = useToast();
+  const [paypalLib, setPaypalLib] = useState<PayPalLib | null>(null);
 
-  if (!PAYPAL_CLIENT_ID) return null;
+  useEffect(() => {
+    let mounted = true;
+    import("@paypal/react-paypal-js")
+      .then((mod) => {
+        if (mounted) setPaypalLib(mod);
+      })
+      .catch((err) => {
+        console.error("Failed to load PayPal SDK", err);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (!PAYPAL_CLIENT_ID || !paypalLib) return null;
+
+  const { PayPalScriptProvider, PayPalButtons } = paypalLib;
 
   return (
     <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID }}>
@@ -66,4 +85,5 @@ export default function PayPalSection({
     </PayPalScriptProvider>
   );
 }
+
 
