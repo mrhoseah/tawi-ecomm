@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useCartStore } from "@/lib/store";
@@ -14,6 +14,8 @@ import CheckoutSteps from "./CheckoutSteps";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useToast } from "@/components/Toast";
 import { CreditCard, Lock, Smartphone, Building2 } from "lucide-react";
+
+const PayPalSection = dynamic(() => import("./PayPalSection"), { ssr: false });
 
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
 
@@ -674,38 +676,22 @@ export default function CheckoutPage() {
                       <span>PayPal</span>
                     </label>
                   )}
-                  {paymentMethod === "paypal" && paypalOrderId && pendingOrderNumber && PAYPAL_CLIENT_ID && (
-                    <div className="ml-8 p-4 bg-blue-50 rounded-lg">
-                      <p className="text-sm font-medium mb-3">Complete payment with PayPal</p>
-                      <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID }}>
-                        <PayPalButtons
-                          createOrder={() => Promise.resolve(paypalOrderId)}
-                          onApprove={async () => {
-                            setIsProcessing(true);
-                            try {
-                              const res = await fetch("/api/paypal/capture-order", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  orderNumber: pendingOrderNumber,
-                                  paypalOrderId,
-                                }),
-                              });
-                              if (!res.ok) throw new Error("Capture failed");
-                              clearCart();
-                              router.push(`/order/${pendingOrderNumber}`);
-                              router.refresh();
-                            } catch (err) {
-                              showToast(err instanceof Error ? err.message : "Payment failed", "error");
-                            } finally {
-                              setIsProcessing(false);
-                            }
-                          }}
-                          onError={(err) => showToast(err && typeof err === "object" && "message" in err ? String(err.message) : "PayPal error", "error")}
+                  {paymentMethod === "paypal" &&
+                    paypalOrderId &&
+                    pendingOrderNumber &&
+                    PAYPAL_CLIENT_ID && (
+                      <div className="ml-8 p-4 bg-blue-50 rounded-lg">
+                        <p className="text-sm font-medium mb-3">
+                          Complete payment with PayPal
+                        </p>
+                        <PayPalSection
+                          paypalOrderId={paypalOrderId}
+                          pendingOrderNumber={pendingOrderNumber}
+                          total={total}
+                          setIsProcessing={setIsProcessing}
                         />
-                      </PayPalScriptProvider>
-                    </div>
-                  )}
+                      </div>
+                    )}
                 </div>
               </div>
             </div>
