@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
@@ -11,6 +11,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { update: updateSession } = useSession();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
 
   const [email, setEmail] = useState("");
@@ -33,6 +34,7 @@ function SignInForm() {
       if (result?.error) {
         setError("Invalid email or password");
       } else {
+        await updateSession(); // Refetch session so Header/nav updates
         router.push(callbackUrl);
         router.refresh();
       }
