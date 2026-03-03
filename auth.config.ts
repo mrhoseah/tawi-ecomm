@@ -26,4 +26,13 @@ export default {
     signIn: "/sign-in",
   },
   trustHost: true,
+  callbacks: {
+    async session({ session, token }) {
+      if (session.user) {
+        (session.user as any).id = token.id;
+        (session.user as any).role = token.role;
+      }
+      return session;
+    },
+  },
 } satisfies NextAuthConfig;
