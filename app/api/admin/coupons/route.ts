@@ -54,6 +54,9 @@ export async function POST(request: NextRequest) {
       freeShipping,
       description,
       active,
+      showOnPromoBar,
+      promoBarLabel,
+      promoBarSortOrder,
     } = body;
 
     if (!code || !type || !validFrom || !validUntil) {
@@ -84,6 +87,9 @@ export async function POST(request: NextRequest) {
         freeShipping: type === "free_shipping" || body.freeShipping === true,
         description: body.description || null,
         active: active !== false,
+        showOnPromoBar: showOnPromoBar === true,
+        promoBarLabel: promoBarLabel != null ? String(promoBarLabel).trim() || null : null,
+        promoBarSortOrder: promoBarSortOrder != null ? parseInt(promoBarSortOrder, 10) || 0 : 0,
       },
     });
     return NextResponse.json({ coupon });

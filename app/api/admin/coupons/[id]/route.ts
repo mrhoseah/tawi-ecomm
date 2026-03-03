@@ -67,6 +67,9 @@ export async function PATCH(
       freeShipping,
       description,
       active,
+      showOnPromoBar,
+      promoBarLabel,
+      promoBarSortOrder,
     } = body;
 
     const existing = await prisma.coupon.findUnique({ where: { id } });
@@ -91,6 +94,9 @@ export async function PATCH(
     if (freeShipping !== undefined) data.freeShipping = freeShipping === true;
     if (description !== undefined) data.description = description || null;
     if (active !== undefined) data.active = active === true;
+    if (showOnPromoBar !== undefined) data.showOnPromoBar = showOnPromoBar === true;
+    if (promoBarLabel !== undefined) data.promoBarLabel = promoBarLabel != null ? String(promoBarLabel).trim() || null : null;
+    if (promoBarSortOrder !== undefined) data.promoBarSortOrder = parseInt(promoBarSortOrder, 10) || 0;
 
     if (code !== undefined && code !== existing.code) {
       const dup = await prisma.coupon.findUnique({ where: { code: String(code).toUpperCase() } });

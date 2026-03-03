@@ -12,6 +12,7 @@ export async function getSeoSettings() {
     });
     return {
       siteName: settings?.siteName || DEFAULT_SITE_NAME,
+      tagline: settings?.tagline || "Premium Sports Gear",
       defaultMetaDesc: settings?.defaultMetaDesc || DEFAULT_DESCRIPTION,
       metaKeywords: settings?.metaKeywords || null,
       ogImage: settings?.ogImage || null,
@@ -23,6 +24,7 @@ export async function getSeoSettings() {
   } catch {
     return {
       siteName: DEFAULT_SITE_NAME,
+      tagline: "Premium Sports Gear",
       defaultMetaDesc: DEFAULT_DESCRIPTION,
       metaKeywords: null,
       ogImage: null,

@@ -12,6 +12,7 @@ export async function GET() {
     });
     return NextResponse.json({
       siteName: settings?.siteName ?? "Tawi TV",
+      tagline: settings?.tagline ?? null,
       defaultMetaDesc: settings?.defaultMetaDesc ?? null,
       metaKeywords: settings?.metaKeywords ?? null,
       ogImage: settings?.ogImage ?? null,
@@ -46,6 +47,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const {
       siteName,
+      tagline,
       defaultMetaDesc,
       metaKeywords,
       ogImage,
@@ -59,6 +61,7 @@ export async function PATCH(request: NextRequest) {
       where: { id: SETTINGS_ID },
       update: {
         ...(siteName !== undefined && { siteName: siteName || null }),
+        ...(tagline !== undefined && { tagline: tagline || null }),
         ...(defaultMetaDesc !== undefined && { defaultMetaDesc: defaultMetaDesc || null }),
         ...(metaKeywords !== undefined && { metaKeywords: metaKeywords || null }),
         ...(ogImage !== undefined && { ogImage: ogImage || null }),
@@ -70,6 +73,7 @@ export async function PATCH(request: NextRequest) {
       create: {
         id: SETTINGS_ID,
         siteName: siteName ?? null,
+        tagline: tagline ?? null,
         defaultMetaDesc: defaultMetaDesc ?? null,
         metaKeywords: metaKeywords ?? null,
         ogImage: ogImage ?? null,

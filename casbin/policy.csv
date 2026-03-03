@@ -29,6 +29,8 @@ p, admin, currency-settings, read
 p, admin, currency-settings, write
 p, admin, shipping-methods, read
 p, admin, shipping-methods, write
+p, admin, maintenance-settings, read
+p, admin, maintenance-settings, write
 p, support, admin-settings, read
 p, support, payment-settings, read
 p, support, orders, read
@@ -46,6 +48,7 @@ p, support, categories, read
 p, support, seo-settings, read
 p, support, matches, read
 p, support, currency-settings, read
+p, support, maintenance-settings, read
 p, support, shipping-methods, read
 p, customer, cart, read
 p, customer, cart, write

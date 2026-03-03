@@ -1,14 +1,76 @@
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import {
+  CognitoIdentityProviderClient,
+  AdminCreateUserCommand,
+  AdminSetUserPasswordCommand,
+  UsernameExistsException,
+} from "@aws-sdk/client-cognito-identity-provider";
 
 const prisma = new PrismaClient();
 
-const ADMIN_EMAIL = "hoseahkplgt@gmail.com";
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "hoseahkplgt@gmail.com";
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "Admin123!";
+
+async function ensureCognitoUser(email: string, password: string, name: string) {
+  const userPoolId = process.env.COGNITO_USER_POOL_ID;
+  const region = process.env.COGNITO_REGION;
+  if (!userPoolId || !region) {
+    console.log("Skipping Cognito: COGNITO_USER_POOL_ID or COGNITO_REGION not set");
+    return;
+  }
+  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    console.warn(
+      "Skipping Cognito: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY required (these are IAM credentials, not COGNITO_CLIENT_ID/SECRET)"
+    );
+    return;
+  }
+  const client = new CognitoIdentityProviderClient({ region });
+
+  try {
+    await client.send(
+      new AdminCreateUserCommand({
+        UserPoolId: userPoolId,
+        Username: email,
+        UserAttributes: [
+          { Name: "email", Value: email },
+          { Name: "email_verified", Value: "true" },
+          { Name: "name", Value: name },
+        ],
+        TemporaryPassword: password,
+        MessageAction: "SUPPRESS",
+      })
+    );
+    await client.send(
+      new AdminSetUserPasswordCommand({
+        UserPoolId: userPoolId,
+        Username: email,
+        Password: password,
+        Permanent: true,
+      })
+    );
+    console.log(`Cognito user created: ${email}`);
+  } catch (err: unknown) {
+    if (err instanceof UsernameExistsException) {
+      console.log(`Cognito user already exists: ${email}`);
+    } else {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("Could not load credentials")) {
+        console.warn(
+          "Cognito skip: Add AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to .env for Cognito user creation."
+        );
+      } else {
+        console.error("Cognito create failed:", err);
+      }
+    }
+  }
+}
 
 async function main() {
   console.log("Seeding database...");
 
-  // Ensure admin user exists
+  // Ensure admin user exists (Prisma + Cognito)
   const existingAdmin = await prisma.user.findUnique({
     where: { email: ADMIN_EMAIL },
   });
@@ -19,7 +81,7 @@ async function main() {
     });
     console.log(`Admin role set for ${ADMIN_EMAIL}`);
   } else {
-    const hashedPassword = await bcrypt.hash("Admin123!", 10);
+    const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
     await prisma.user.create({
       data: {
         email: ADMIN_EMAIL,
@@ -28,8 +90,11 @@ async function main() {
         role: "admin",
       },
     });
-    console.log(`Admin user created: ${ADMIN_EMAIL} (default password: Admin123!)`);
+    console.log(`Admin user created in DB: ${ADMIN_EMAIL} (default password: ${ADMIN_PASSWORD})`);
   }
+
+  // Create admin in Cognito if env vars are set (needed for Cognito sign-in)
+  await ensureCognitoUser(ADMIN_EMAIL, ADMIN_PASSWORD, "Admin");
 
   // Create categories
   const categorySlugs = ["jerseys", "apparel", "accessories"];

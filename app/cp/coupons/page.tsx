@@ -48,6 +48,9 @@ type Coupon = {
   freeShipping: boolean;
   description: string | null;
   active: boolean;
+  showOnPromoBar?: boolean;
+  promoBarLabel?: string | null;
+  promoBarSortOrder?: number;
   createdAt: string;
 };
 
@@ -74,6 +77,9 @@ export default function AdminCouponsPage() {
     freeShipping: false,
     description: "",
     active: true,
+    showOnPromoBar: false,
+    promoBarLabel: "",
+    promoBarSortOrder: "0",
   });
 
   const role = (session?.user as { role?: string })?.role;
@@ -110,6 +116,9 @@ export default function AdminCouponsPage() {
       freeShipping: false,
       description: "",
       active: true,
+      showOnPromoBar: false,
+      promoBarLabel: "",
+      promoBarSortOrder: "0",
     });
     setEditing(null);
     setDialogOpen(false);
@@ -154,6 +163,9 @@ export default function AdminCouponsPage() {
       freeShipping: form.type === "free_shipping" || form.freeShipping,
       description: form.description.trim() || null,
       active: form.active,
+      showOnPromoBar: form.showOnPromoBar,
+      promoBarLabel: form.promoBarLabel.trim() || null,
+      promoBarSortOrder: parseInt(form.promoBarSortOrder, 10) || 0,
     };
 
     if (!payload.code) {
@@ -213,6 +225,9 @@ export default function AdminCouponsPage() {
       freeShipping: c.freeShipping,
       description: c.description || "",
       active: c.active,
+      showOnPromoBar: c.showOnPromoBar ?? false,
+      promoBarLabel: c.promoBarLabel || "",
+      promoBarSortOrder: String(c.promoBarSortOrder ?? 0),
     });
     setDialogOpen(true);
   };
@@ -233,6 +248,9 @@ export default function AdminCouponsPage() {
       freeShipping: false,
       description: "",
       active: true,
+      showOnPromoBar: false,
+      promoBarLabel: "",
+      promoBarSortOrder: "0",
     });
     setEditing(null);
     setDialogOpen(true);
@@ -455,6 +473,47 @@ export default function AdminCouponsPage() {
                   />
                 </div>
 
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 space-y-3 dark:border-amber-800 dark:bg-amber-950/30">
+                  <h4 className="text-sm font-medium text-amber-900 dark:text-amber-100">Landing page promo bar</h4>
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    Only coupons with &quot;Show on promo bar&quot; enabled appear in the discount banner above the nav menu. Uncheck to hide this offer from the landing page.
+                  </p>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={form.showOnPromoBar}
+                      onChange={(e) => setForm({ ...form, showOnPromoBar: e.target.checked })}
+                    />
+                    Show on landing page promo bar
+                  </label>
+                  {form.showOnPromoBar && (
+                    <div className="space-y-2 pt-1">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Promo bar label</label>
+                        <Input
+                          value={form.promoBarLabel}
+                          onChange={(e) => setForm({ ...form, promoBarLabel: e.target.value })}
+                          placeholder="e.g. Free shipping on orders over $50"
+                          className="bg-white dark:bg-gray-900"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Leave blank to auto-generate (e.g. &quot;Use code for 10% off&quot;)</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Sort order</label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={form.promoBarSortOrder}
+                          onChange={(e) => setForm({ ...form, promoBarSortOrder: e.target.value })}
+                          placeholder="0"
+                          className="w-24 bg-white dark:bg-gray-900"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Lower = first in the bar</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {editing && (
                   <label className="flex items-center gap-2">
                     <input
@@ -490,6 +549,7 @@ export default function AdminCouponsPage() {
                 <TableHead>Value</TableHead>
                 <TableHead>Usage</TableHead>
                 <TableHead>Valid</TableHead>
+                <TableHead>Promo bar</TableHead>
                 <TableHead>Status</TableHead>
                 {canWrite && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
@@ -497,7 +557,7 @@ export default function AdminCouponsPage() {
             <TableBody>
               {coupons.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canWrite ? 7 : 6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canWrite ? 8 : 7} className="text-center py-8 text-muted-foreground">
                     No coupons yet. Add one above.
                   </TableCell>
                 </TableRow>
@@ -513,6 +573,15 @@ export default function AdminCouponsPage() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDate(c.validFrom)} – {formatDate(c.validUntil)}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {c.showOnPromoBar ? (
+                        <span className="text-amber-600 dark:text-amber-400" title={c.promoBarLabel || "Shown on landing"}>
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={c.active ? "default" : "secondary"}>

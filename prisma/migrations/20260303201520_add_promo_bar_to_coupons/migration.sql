@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Coupon" ADD COLUMN "showOnPromoBar" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Coupon" ADD COLUMN "promoBarLabel" TEXT;
+ALTER TABLE "Coupon" ADD COLUMN "promoBarSortOrder" INTEGER NOT NULL DEFAULT 0;

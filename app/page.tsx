@@ -1,12 +1,15 @@
 import Link from "next/link";
-import type { Metadata } from "next";
 import Header from "@/components/Header";
 import SectionHeader from "@/components/SectionHeader";
+import { getSeoSettings } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Home",
-  description: "Official Tawi Shop - Premium sports jerseys, kits, and athletic apparel. Owned by Tawi TV.",
-};
+export async function generateMetadata() {
+  const { siteName, tagline } = await getSeoSettings();
+  return {
+    title: `${siteName} | ${tagline}`,
+    description: "Official Tawi Shop - Premium sports jerseys, kits, and athletic apparel. Owned by Tawi TV.",
+  };
+}
 import Footer from "@/components/Footer";
 import PromoBar from "@/components/PromoBar";
 import HeroSection from "@/components/HeroSection";

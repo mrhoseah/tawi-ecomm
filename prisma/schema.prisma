@@ -176,6 +176,9 @@ model Coupon {
   freeShipping       Boolean  @default(false)  // Free shipping discount
   description        String?  @db.Text  // Admin note
   active             Boolean  @default(true)
+  showOnPromoBar     Boolean  @default(false)  // If true, shown in top promo bar on landing
+  promoBarLabel      String?  @db.Text         // Custom text for promo bar (e.g. "Free shipping on orders over $50")
+  promoBarSortOrder  Int      @default(0)      // Lower = first in promo bar
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   orders             Order[]
@@ -369,6 +372,7 @@ model News {
 model SeoSettings {
   id              String   @id  // singleton: use "default"
   siteName        String?
+  tagline         String?  // slogan for landing page title: "Site Name | Tagline"
   defaultMetaDesc String?  @map("default_meta_desc")
   metaKeywords    String?  @map("meta_keywords") @db.Text
   ogImage         String?  @map("og_image")
@@ -399,6 +403,14 @@ model CurrencySettings {
   exchangeRateApiKey    String?  // optional API key
   exchangeRateFallback  Float?   // fallback rate when API fails (KES→USD e.g. 0.0077)
   updatedAt             DateTime @updatedAt
+}
+
+model MaintenanceSettings {
+  id             String    @id  // singleton: use "default"
+  enabled        Boolean   @default(false)
+  estimatedEndAt DateTime? // For countdown display
+  message        String?   @db.Text  // Optional custom message
+  updatedAt      DateTime  @updatedAt
 }
 
 model Faq {

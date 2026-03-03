@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useToast } from "@/components/Toast";
-import { BarChart3, Building2, Save, Search, Settings, Upload, DollarSign, ImageIcon, Package, Plus, Pencil, Trash2 } from "lucide-react";
+import { BarChart3, Building2, Save, Search, Settings, Upload, DollarSign, ImageIcon, Package, Plus, Pencil, Trash2, Wrench } from "lucide-react";
 import { PageHeader } from "@/components/cp/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface SeoDetails {
   siteName: string;
+  tagline: string;
   defaultMetaDesc: string;
   metaKeywords: string;
   ogImage: string;
@@ -70,6 +71,7 @@ export default function SettingsPage() {
   const ogInputRef = useRef<HTMLInputElement>(null);
   const [seo, setSeo] = useState<SeoDetails>({
     siteName: "",
+    tagline: "",
     defaultMetaDesc: "",
     metaKeywords: "",
     ogImage: "",
@@ -107,6 +109,11 @@ export default function SettingsPage() {
     active: true,
   });
   const [submittingShipping, setSubmittingShipping] = useState(false);
+  const [maintenance, setMaintenance] = useState({
+    enabled: false,
+    estimatedEndAt: "",
+    message: "",
+  });
 
   const fetchShippingMethods = useCallback(async () => {
     try {
@@ -120,13 +127,16 @@ export default function SettingsPage() {
   }, [showToast]);
 
   useEffect(() => {
-    Promise.all([
-        fetch("/api/payment-settings").then((r) => r.json()),
-        fetch("/api/seo-settings").then((r) => r.json()),
-        fetch("/api/currency-settings").then((r) => r.json()),
-      ]).then(([paymentData, seoData, currencyData]) => {
+    const fetches = [
+      fetch("/api/payment-settings").then((r) => r.json()),
+      fetch("/api/seo-settings").then((r) => r.json()),
+      fetch("/api/currency-settings").then((r) => r.json()),
+      fetch("/api/maintenance-settings").then((r) => r.json()).catch(() => ({ enabled: false, estimatedEndAt: null, message: null })),
+    ];
+    Promise.all(fetches).then(([paymentData, seoData, currencyData, maintenanceData]) => {
           setSeo({
             siteName: seoData.siteName ?? "",
+            tagline: seoData.tagline ?? "",
             defaultMetaDesc: seoData.defaultMetaDesc ?? "",
             metaKeywords: seoData.metaKeywords ?? "",
             ogImage: seoData.ogImage ?? "",
@@ -151,6 +161,15 @@ export default function SettingsPage() {
             exchangeRateApiKey: currencyData.exchangeRateApiKey ?? "",
             exchangeRateFallback: currencyData.exchangeRateFallback != null ? String(currencyData.exchangeRateFallback) : "0.0077",
           });
+          if (maintenanceData) {
+            setMaintenance({
+              enabled: maintenanceData.enabled ?? false,
+              estimatedEndAt: maintenanceData.estimatedEndAt
+                ? new Date(maintenanceData.estimatedEndAt).toISOString().slice(0, 16)
+                : "",
+              message: maintenanceData.message ?? "",
+            });
+          }
         })
         .catch(() => showToast("Failed to load settings", "error"))
         .finally(() => setLoading(false));
@@ -327,6 +346,29 @@ export default function SettingsPage() {
     }
   };
 
+  const handleMaintenanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (role !== "admin") return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/maintenance-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: maintenance.enabled,
+          estimatedEndAt: maintenance.estimatedEndAt || null,
+          message: maintenance.message.trim() || null,
+        }),
+      });
+      if (res.ok) showToast("Maintenance settings saved", "success");
+      else showToast((await res.json()).error || "Failed to save", "error");
+    } catch {
+      showToast("Failed to save maintenance settings", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const role = (session?.user as any)?.role;
   const canAccess = role === "admin" || role === "support";
 
@@ -377,6 +419,10 @@ export default function SettingsPage() {
             <Package className="h-4 w-4 mr-2" />
             Shipping
           </TabsTrigger>
+          <TabsTrigger value="maintenance" className="rounded-none border-b-2 border-transparent data-[state=active]:border-red-600 data-[state=active]:shadow-none">
+            <Wrench className="h-4 w-4 mr-2" />
+            Maintenance
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="seo" className="mt-6">
@@ -388,7 +434,7 @@ export default function SettingsPage() {
                   Basic SEO
                 </CardTitle>
                 <CardDescription>
-                  Site name appears in page titles as &quot;PageName | Site Name&quot;. Meta description and keywords help search engines index your site.
+                  Site name and tagline set the landing page browser title as &quot;Site Name | Tagline&quot;. Other pages use &quot;PageName | Site Name&quot;.
                 </CardDescription>
                 {role === "support" && (
                   <p className="text-amber-600 text-sm">Read-only. Admins can edit.</p>
@@ -405,6 +451,18 @@ export default function SettingsPage() {
                     disabled={role === "support"}
                     className="h-10"
                   />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Tagline (slogan)</label>
+                  <Input
+                    value={seo.tagline}
+                    onChange={(e) => setSeo({ ...seo, tagline: e.target.value })}
+                    placeholder="e.g. Premium Sports Gear"
+                    readOnly={role === "support"}
+                    disabled={role === "support"}
+                    className="h-10"
+                  />
+                  <p className="text-xs text-muted-foreground">Landing page title: Site Name | Tagline</p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Default Meta Description</label>
@@ -945,6 +1003,69 @@ export default function SettingsPage() {
               </form>
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        <TabsContent value="maintenance" className="mt-6">
+          <form onSubmit={handleMaintenanceSubmit} className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="h-5 w-5 text-primary" />
+                  Maintenance Mode
+                </CardTitle>
+                <CardDescription>
+                  When enabled, most public pages will redirect users to a maintenance page. Admin panel, sign-in, and sign-up remain accessible.
+                </CardDescription>
+                {role === "support" && (
+                  <p className="text-amber-600 text-sm">Read-only. Admins can edit.</p>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="maintenance-enabled"
+                    checked={maintenance.enabled}
+                    onChange={(e) => setMaintenance({ ...maintenance, enabled: e.target.checked })}
+                    disabled={role === "support"}
+                    className="rounded border-input h-4 w-4"
+                  />
+                  <label htmlFor="maintenance-enabled" className="text-sm font-medium">
+                    Enable maintenance mode
+                  </label>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Estimated end (optional)</label>
+                  <Input
+                    type="datetime-local"
+                    value={maintenance.estimatedEndAt}
+                    onChange={(e) => setMaintenance({ ...maintenance, estimatedEndAt: e.target.value })}
+                    disabled={role === "support"}
+                    className="h-10 max-w-xs"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Users will see a countdown to this date on the maintenance page.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Custom message (optional)</label>
+                  <textarea
+                    value={maintenance.message}
+                    onChange={(e) => setMaintenance({ ...maintenance, message: e.target.value })}
+                    rows={3}
+                    placeholder="e.g. We're upgrading our systems. We'll be back soon!"
+                    disabled={role === "support"}
+                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+                {role === "admin" && (
+                  <Button type="submit" disabled={saving}>
+                    {saving ? <LoadingSpinner size="sm" /> : "Save"}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </form>
         </TabsContent>
       </Tabs>
     </div>
