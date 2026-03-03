@@ -92,7 +92,7 @@ export default function AdminPagesPage() {
                 <input type="text" value={page.title} onChange={(e) => setContent({ ...content, [selected]: { ...page, title: e.target.value } })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-600" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Content (WYSIWYG)</label>
+                <label className="block text-sm font-medium mb-1">Content</label>
                 <WysiwygEditor value={page.content} onChange={(v) => setContent({ ...content, [selected]: { ...page, content: v } })} minHeight="300px" />
               </div>
               {canWrite && (
