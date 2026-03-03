@@ -2,14 +2,13 @@
 
 import { useState, Suspense } from "react";
 import { signIn, useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 function SignInForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { update: updateSession } = useSession();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
@@ -34,9 +33,9 @@ function SignInForm() {
       if (result?.error) {
         setError("Invalid email or password");
       } else {
-        await updateSession(); // Refetch session so Header/nav updates
-        router.push(callbackUrl);
-        router.refresh();
+        await updateSession();
+        // Full page redirect ensures session cookie is sent and Header shows user menu
+        window.location.href = callbackUrl;
       }
     } catch (error) {
       setError("An error occurred. Please try again.");
