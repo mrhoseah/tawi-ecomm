@@ -61,6 +61,31 @@ export default function SignUpPage() {
     setIsLoading(true);
 
     try {
+      // Try Cognito sign-up first (requires email verification)
+      const cognitoRes = await fetch("/api/auth/cognito/sign-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      if (cognitoRes.ok) {
+        const data = await cognitoRes.json();
+        window.location.href = `/sign-up/verify?email=${encodeURIComponent(data.email)}`;
+        return;
+      }
+
+      if (cognitoRes.status === 503) {
+        // Cognito not configured, fall back to legacy register
+      } else {
+        const data = await cognitoRes.json();
+        setError(data.error || "Failed to create account");
+        return;
+      }
+
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

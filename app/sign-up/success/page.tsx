@@ -12,6 +12,9 @@ function SignUpSuccessContent() {
   const email = searchParams.get("email") || "";
   const emailSent = searchParams.get("emailSent") === "true";
   const signedIn = searchParams.get("signedIn") === "true";
+  const flow = searchParams.get("flow");
+
+  const isCognitoFlow = flow === "cognito";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -23,12 +26,14 @@ function SignUpSuccessContent() {
               <CheckCircle2 className="w-10 h-10" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Account created successfully
+              {isCognitoFlow ? "Email verified successfully" : "Account created successfully"}
             </h1>
             <p className="text-gray-600 mb-6">
-              {signedIn
-                ? "You're signed in and ready to go."
-                : "Your account is ready. Sign in to get started."}
+              {isCognitoFlow
+                ? "Your account is ready. Sign in to get started."
+                : signedIn
+                  ? "You're signed in and ready to go."
+                  : "Your account is ready. Sign in to get started."}
             </p>
 
             {emailSent && email && (

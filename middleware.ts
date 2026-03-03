@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
 
-const AUTH_PAGES = ["/sign-in", "/sign-up"];
+const AUTH_PAGES = ["/sign-in", "/sign-up", "/sign-up/verify", "/forgot-password", "/reset-password"];
 const PROTECTED_ACCOUNT = "/account";
 const PROTECTED_ADMIN = "/cp";
 
@@ -14,7 +14,10 @@ const MAINTENANCE_ALLOWED = [
   "/cp",
   "/sign-in",
   "/sign-up",
+  "/sign-up/verify",
   "/sign-up/success",
+  "/forgot-password",
+  "/reset-password",
   "/auth/signin",
   "/auth/signup",
 ];
