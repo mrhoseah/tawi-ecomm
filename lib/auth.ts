@@ -1,9 +1,8 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import GoogleProvider from "next-auth/providers/google";
-import CognitoProvider from "next-auth/providers/cognito";
 import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
+import authConfig from "@/auth.config";
 
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 if (!authSecret && process.env.NODE_ENV === "production") {
@@ -11,7 +10,9 @@ if (!authSecret && process.env.NODE_ENV === "production") {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   providers: [
+    ...authConfig.providers,
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -51,15 +52,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
         };
       },
-    }),
-    CognitoProvider({
-      clientId: process.env.COGNITO_CLIENT_ID || "",
-      clientSecret: process.env.COGNITO_CLIENT_SECRET || "",
-      issuer: process.env.COGNITO_ISSUER_URL,
-    }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     }),
   ],
   session: {
