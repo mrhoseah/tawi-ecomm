@@ -105,3 +105,42 @@ export async function sendOrderConfirmation(params: OrderConfirmationParams): Pr
     return false;
   }
 }
+
+export async function sendWelcomeEmail(params: {
+  to: string;
+  name?: string | null;
+}): Promise<boolean> {
+  if (!resend) {
+    return false;
+  }
+  try {
+    const { to, name } = params;
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Welcome to Tawi Shop</title></head>
+<body style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+  <h1 style="color: #dc2626;">Welcome to Tawi Shop!</h1>
+  <p>Hi ${name || "there"},</p>
+  <p>Your account has been created. You can now sign in to browse jerseys, track orders, and manage your profile.</p>
+  <p><a href="${SITE_URL}/sign-in" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600;">Sign in →</a></p>
+  <p style="margin-top: 24px; color: #666;">If you didn't create this account, you can safely ignore this email.</p>
+  <p style="margin-top: 32px; color: #888; font-size: 14px;">— Tawi Shop</p>
+</body>
+</html>`;
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [to],
+      subject: "Welcome to Tawi Shop – Your account is ready",
+      html,
+    });
+    if (error) {
+      console.error("Resend welcome email error:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Send welcome email error:", err);
+    return false;
+  }
+}

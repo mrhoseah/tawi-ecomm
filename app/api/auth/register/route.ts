@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { validatePassword, validateEmail } from "@/lib/password-validation";
 import { createCognitoUser } from "@/lib/cognito";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -81,10 +82,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const emailSent = await sendWelcomeEmail({
+      to: emailTrimmed,
+      name: user.name,
+    });
+
     return NextResponse.json({
       message: "User created successfully",
       user: { id: user.id, email: user.email, name: user.name },
       cognitoSynced: !cognitoResult.skipped,
+      emailSent,
     });
   } catch (error) {
     console.error("Error creating user:", error);

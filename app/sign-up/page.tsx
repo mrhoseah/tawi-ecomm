@@ -84,12 +84,12 @@ export default function SignUpPage() {
         redirect: false,
       });
 
-      if (result?.ok) {
-        await updateSession();
-        window.location.href = "/";
-      } else {
-        window.location.href = "/sign-in";
-      }
+      const params = new URLSearchParams({
+        email: formData.email.trim().toLowerCase(),
+        emailSent: data.emailSent ? "true" : "false",
+        signedIn: result?.ok ? "true" : "false",
+      });
+      window.location.href = `/sign-up/success?${params.toString()}`;
     } catch (error) {
       setError("An error occurred. Please try again.");
     } finally {

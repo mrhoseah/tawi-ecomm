@@ -14,6 +14,7 @@ const MAINTENANCE_ALLOWED = [
   "/cp",
   "/sign-in",
   "/sign-up",
+  "/sign-up/success",
   "/auth/signin",
   "/auth/signup",
 ];
@@ -37,12 +38,13 @@ export default auth(async (req) => {
   const isLoggedIn = !!session?.user;
   const base = getPublicOrigin(req);
 
-  const isAuthPage = AUTH_PAGES.some((p) => pathname.startsWith(p));
+  const isAuthPage = AUTH_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/"));
   const isAccountRoute = pathname.startsWith(PROTECTED_ACCOUNT);
   const isAdminRoute = pathname.startsWith(PROTECTED_ADMIN);
 
   // Auth pages: allow unauthenticated access, redirect logged-in users to home
-  if (isAuthPage) {
+  // Exception: /sign-up/success is a post-registration guidance page - allow both
+  if (isAuthPage && pathname !== "/sign-up/success") {
     if (isLoggedIn) {
       return NextResponse.redirect(new URL("/", base));
     }
