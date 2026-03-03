@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -13,7 +12,7 @@ const MAX_NAME = 100;
 const MAX_EMAIL = 254;
 
 export default function SignUpPage() {
-  const router = useRouter();
+  const { update: updateSession } = useSession();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -85,10 +84,10 @@ export default function SignUpPage() {
       });
 
       if (result?.ok) {
-        router.push("/");
-        router.refresh();
+        await updateSession();
+        window.location.href = "/";
       } else {
-        router.push("/sign-in");
+        window.location.href = "/sign-in";
       }
     } catch (error) {
       setError("An error occurred. Please try again.");

@@ -1,12 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import {
-  CognitoIdentityProviderClient,
-  AdminCreateUserCommand,
-  AdminSetUserPasswordCommand,
-  UsernameExistsException,
-} from "@aws-sdk/client-cognito-identity-provider";
+import { createCognitoUser } from "../lib/cognito";
 
 const prisma = new PrismaClient();
 
@@ -14,56 +9,11 @@ const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "hoseahkplgt@gmail.com";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "Admin123!";
 
 async function ensureCognitoUser(email: string, password: string, name: string) {
-  const userPoolId = process.env.COGNITO_USER_POOL_ID;
-  const region = process.env.COGNITO_REGION;
-  if (!userPoolId || !region) {
-    console.log("Skipping Cognito: COGNITO_USER_POOL_ID or COGNITO_REGION not set");
-    return;
-  }
-  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-    console.warn(
-      "Skipping Cognito: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY required (these are IAM credentials, not COGNITO_CLIENT_ID/SECRET)"
-    );
-    return;
-  }
-  const client = new CognitoIdentityProviderClient({ region });
-
-  try {
-    await client.send(
-      new AdminCreateUserCommand({
-        UserPoolId: userPoolId,
-        Username: email,
-        UserAttributes: [
-          { Name: "email", Value: email },
-          { Name: "email_verified", Value: "true" },
-          { Name: "name", Value: name },
-        ],
-        TemporaryPassword: password,
-        MessageAction: "SUPPRESS",
-      })
-    );
-    await client.send(
-      new AdminSetUserPasswordCommand({
-        UserPoolId: userPoolId,
-        Username: email,
-        Password: password,
-        Permanent: true,
-      })
-    );
-    console.log(`Cognito user created: ${email}`);
-  } catch (err: unknown) {
-    if (err instanceof UsernameExistsException) {
-      console.log(`Cognito user already exists: ${email}`);
-    } else {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("Could not load credentials")) {
-        console.warn(
-          "Cognito skip: Add AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to .env for Cognito user creation."
-        );
-      } else {
-        console.error("Cognito create failed:", err);
-      }
-    }
+  const result = await createCognitoUser(email, password, name);
+  if (result.ok) {
+    console.log(`Cognito user created or exists: ${email}`);
+  } else {
+    console.warn(`Cognito skip: ${result.error}`);
   }
 }
 

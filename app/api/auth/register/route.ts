@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { validatePassword, validateEmail } from "@/lib/password-validation";
+import { createCognitoUser } from "@/lib/cognito";
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Create user in Prisma
     const user = await prisma.user.create({
       data: {
         name: String(name).trim().slice(0, 100),
@@ -61,6 +62,16 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
       },
     });
+
+    // Create user in Cognito so they can also sign in via Cognito provider
+    const cognitoResult = await createCognitoUser(
+      emailTrimmed,
+      String(password),
+      user.name || emailTrimmed
+    );
+    if (!cognitoResult.ok) {
+      console.warn("Cognito user creation failed (Prisma user exists):", cognitoResult.error);
+    }
 
     return NextResponse.json({
       message: "User created successfully",

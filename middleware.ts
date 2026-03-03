@@ -37,6 +37,24 @@ export default auth(async (req) => {
   const isLoggedIn = !!session?.user;
   const base = getPublicOrigin(req);
 
+  const isAuthPage = AUTH_PAGES.some((p) => pathname.startsWith(p));
+  const isAccountRoute = pathname.startsWith(PROTECTED_ACCOUNT);
+  const isAdminRoute = pathname.startsWith(PROTECTED_ADMIN);
+
+  // Auth pages: allow unauthenticated access, redirect logged-in users to home
+  if (isAuthPage) {
+    if (isLoggedIn) {
+      return NextResponse.redirect(new URL("/", base));
+    }
+    const res = NextResponse.next();
+    res.headers.set("X-Frame-Options", "DENY");
+    res.headers.set("X-Content-Type-Options", "nosniff");
+    res.headers.set("X-XSS-Protection", "1; mode=block");
+    res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.headers.set("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+    return res;
+  }
+
   // Check maintenance mode for affected paths
   if (!isMaintenanceAllowed(pathname)) {
     try {
@@ -65,15 +83,6 @@ export default auth(async (req) => {
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   // Permissions policy - restrict sensitive features
   response.headers.set("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
-
-  const isAuthPage = AUTH_PAGES.some((p) => pathname.startsWith(p));
-  const isAccountRoute = pathname.startsWith(PROTECTED_ACCOUNT);
-  const isAdminRoute = pathname.startsWith(PROTECTED_ADMIN);
-
-  // Auth pages: redirect logged-in users to home
-  if (isAuthPage && isLoggedIn) {
-    return NextResponse.redirect(new URL("/", base));
-  }
 
   // Admin: require admin or support role
   if (isAdminRoute && !isLoggedIn) {
