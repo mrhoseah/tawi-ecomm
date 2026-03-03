@@ -22,23 +22,30 @@ function isMaintenanceAllowed(pathname: string): boolean {
   return MAINTENANCE_ALLOWED.some((p) => pathname.startsWith(p));
 }
 
+/** Build public origin from request (Vercel may pass internal URLs, use forwarded headers) */
+function getPublicOrigin(req: Request): string {
+  const headers = req.headers;
+  const host = headers.get("x-forwarded-host") ?? headers.get("host") ?? "tawi-ecomm.vercel.app";
+  const proto = headers.get("x-forwarded-proto") ?? "https";
+  return `${proto}://${host}`;
+}
+
 export default auth(async (req) => {
   const { pathname } = req.nextUrl;
   const session = req.auth;
   const role = (session?.user as { role?: string })?.role;
   const isLoggedIn = !!session?.user;
+  const base = getPublicOrigin(req);
 
   // Check maintenance mode for affected paths
   if (!isMaintenanceAllowed(pathname)) {
     try {
-      const base = req.nextUrl.origin;
       const res = await fetch(`${base}/api/maintenance-settings`, {
         headers: { "Cache-Control": "no-store" },
       });
       const data = await res.json().catch(() => ({}));
       if (data.enabled) {
-        const url = new URL("/maintenance", req.url);
-        return NextResponse.redirect(url);
+        return NextResponse.redirect(new URL("/maintenance", base));
       }
     } catch {
       // If fetch fails, allow request to proceed
@@ -65,24 +72,22 @@ export default auth(async (req) => {
 
   // Auth pages: redirect logged-in users to home
   if (isAuthPage && isLoggedIn) {
-    const url = new URL("/", req.url);
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL("/", base));
   }
 
   // Admin: require admin or support role
   if (isAdminRoute && !isLoggedIn) {
-    const url = new URL("/sign-in", req.url);
+    const url = new URL("/sign-in", base);
     url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);
   }
   if (isAdminRoute && role !== "admin" && role !== "support") {
-    const url = new URL("/", req.url);
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL("/", base));
   }
 
   // Account: require any authenticated user
   if (isAccountRoute && !isLoggedIn) {
-    const url = new URL("/sign-in", req.url);
+    const url = new URL("/sign-in", base);
     url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);
   }

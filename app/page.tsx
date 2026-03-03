@@ -17,7 +17,7 @@ import CategoryCards from "@/components/CategoryCards";
 import ProductSection from "@/components/ProductSection";
 import ProductCarousel from "@/components/ProductCarousel";
 import { ArrowRight, Star, Shield, Truck, Headphones, Newspaper, Trophy, Calendar, MapPin } from "lucide-react";
-import { prisma } from "@/lib/prisma";
+import { prisma, ensurePrismaConnected } from "@/lib/prisma";
 
 async function getLatestNews() {
   try {
@@ -118,6 +118,7 @@ function formatMatchDate(date: Date) {
 }
 
 export default async function Home() {
+  await ensurePrismaConnected();
   const [homeProducts, news, upcomingMatches, categories] = await Promise.all([
     getHomeProducts(),
     getLatestNews(),
