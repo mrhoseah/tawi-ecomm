@@ -70,12 +70,21 @@ export async function POST(request: NextRequest) {
       user.name || emailTrimmed
     );
     if (!cognitoResult.ok) {
-      console.warn("Cognito user creation failed (Prisma user exists):", cognitoResult.error);
+      console.error("Cognito user creation failed:", cognitoResult.error);
+      return NextResponse.json(
+        {
+          error: "Account created but could not sync with identity provider. You can still sign in with email/password.",
+          user: { id: user.id, email: user.email, name: user.name },
+          cognitoFailed: true,
+        },
+        { status: 201 }
+      );
     }
 
     return NextResponse.json({
       message: "User created successfully",
       user: { id: user.id, email: user.email, name: user.name },
+      cognitoSynced: !cognitoResult.skipped,
     });
   } catch (error) {
     console.error("Error creating user:", error);

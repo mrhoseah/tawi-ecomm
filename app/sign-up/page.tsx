@@ -6,6 +6,7 @@ import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { validatePasswordClient } from "@/lib/client-password-validation";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const MIN_NAME = 1;
 const MAX_NAME = 100;
@@ -78,7 +79,7 @@ export default function SignUpPage() {
       }
 
       const result = await signIn("credentials", {
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
         redirect: false,
       });
@@ -135,13 +136,12 @@ export default function SignUpPage() {
 
               <div>
                 <label className="block text-sm font-medium mb-1">Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   required
                   minLength={8}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+                  className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 pr-10"
                   placeholder="Min 8 chars, upper, lower, number, special"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -151,12 +151,11 @@ export default function SignUpPage() {
 
               <div>
                 <label className="block text-sm font-medium mb-1">Confirm Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   required
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+                  className="w-full px-4 py-2 h-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 pr-10"
                 />
               </div>
 

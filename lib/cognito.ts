@@ -5,23 +5,30 @@ import {
   UsernameExistsException,
 } from "@aws-sdk/client-cognito-identity-provider";
 
+export type CognitoCreateResult =
+  | { ok: true; skipped?: false }
+  | { ok: true; skipped: true; reason: string }
+  | { ok: false; error: string };
+
 /**
  * Creates a user in Cognito so they can sign in via Cognito provider.
  * Requires: COGNITO_USER_POOL_ID, COGNITO_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
- * If not configured, this is a no-op (Prisma user still created).
+ * If not configured, returns skipped (Prisma user still created).
  */
 export async function createCognitoUser(
   email: string,
   password: string,
   name: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<CognitoCreateResult> {
   const userPoolId = process.env.COGNITO_USER_POOL_ID;
   const region = process.env.COGNITO_REGION;
   if (!userPoolId || !region) {
-    return { ok: true }; // Skip silently - Cognito not configured
+    console.warn("Cognito skip: COGNITO_USER_POOL_ID and COGNITO_REGION required in env");
+    return { ok: true, skipped: true, reason: "Cognito not configured" };
   }
   if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-    return { ok: true }; // Skip - AWS credentials not set
+    console.warn("Cognito skip: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY required in env");
+    return { ok: true, skipped: true, reason: "AWS credentials not set" };
   }
 
   const client = new CognitoIdentityProviderClient({ region });
@@ -54,7 +61,7 @@ export async function createCognitoUser(
       return { ok: true }; // User already in Cognito, fine
     }
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("Cognito create failed:", err);
+    console.error("Cognito create failed for", email, ":", msg);
     return { ok: false, error: msg };
   }
 }

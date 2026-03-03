@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import { ADMIN_PATH } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export default function InviteAcceptPage() {
   const params = useParams();
@@ -120,8 +121,7 @@ export default function InviteAcceptPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Password *</label>
-                    <Input
-                      type="password"
+                    <PasswordInput
                       required
                       minLength={8}
                       value={password}

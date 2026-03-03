@@ -7,6 +7,7 @@ import { User, Lock } from "lucide-react";
 import { validatePasswordClient } from "@/lib/client-password-validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export default function AccountSettingsPage() {
   const { data: session, update } = useSession();
@@ -177,8 +178,7 @@ export default function AccountSettingsPage() {
             <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-md">
               <div>
                 <label className="block text-sm font-medium mb-1">Current password</label>
-                <Input
-                  type="password"
+                <PasswordInput
                   value={passwordForm.currentPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                   placeholder="••••••••"
@@ -187,8 +187,7 @@ export default function AccountSettingsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">New password</label>
-                <Input
-                  type="password"
+                <PasswordInput
                   value={passwordForm.newPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                   placeholder="Min 8 chars, upper, lower, number, special"
@@ -198,8 +197,7 @@ export default function AccountSettingsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Confirm new password</label>
-                <Input
-                  type="password"
+                <PasswordInput
                   value={passwordForm.confirmPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                   placeholder="••••••••"
