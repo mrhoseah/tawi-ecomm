@@ -12,6 +12,7 @@ import {
   ExpiredCodeException,
   UserNotFoundException,
   InvalidParameterException,
+  NotAuthorizedException,
 } from "@aws-sdk/client-cognito-identity-provider";
 
 const clientId = process.env.COGNITO_CLIENT_ID ?? "";
@@ -257,10 +258,13 @@ export async function cognitoSignIn(params: {
     if (err instanceof UserNotFoundException) {
       return { ok: false, error: "Invalid email or password." };
     }
+    if (err instanceof NotAuthorizedException) {
+      return { ok: false, error: "Invalid email or password." };
+    }
     if (err instanceof InvalidParameterException) {
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("USER_PASSWORD_AUTH") || msg.includes("not enabled")) {
-        return { ok: false, error: "Email/password sign-in is not enabled for this app." };
+        return { ok: false, error: "Email/password sign-in is not enabled for this app. Enable ALLOW_USER_PASSWORD_AUTH in the Cognito app client." };
       }
     }
     const msg = err instanceof Error ? err.message : String(err);

@@ -22,48 +22,58 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          return null;
+          throw new Error("Email and password are required.");
         }
 
         const email = String(credentials.email).trim().toLowerCase();
         const password = credentials.password as string;
 
-        await ensurePrismaConnected();
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
+        try {
+          await ensurePrismaConnected();
+          const user = await prisma.user.findUnique({
+            where: { email },
+          });
 
-        if (user?.password) {
-          const isPasswordValid = await bcrypt.compare(
-            password,
-            user.password
-          );
-          if (isPasswordValid) {
-            return {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              image: user.image,
-              role: user.role,
-            };
+          if (user?.password) {
+            try {
+              const isPasswordValid = await bcrypt.compare(
+                password,
+                user.password
+              );
+              if (isPasswordValid) {
+                return {
+                  id: user.id,
+                  email: user.email,
+                  name: user.name,
+                  image: user.image,
+                  role: user.role,
+                };
+              }
+            } catch {
+              // Invalid hash or compare error: fall through to try Cognito
+            }
           }
-        }
 
-        // No Prisma user or wrong password: try Cognito (e.g. user signed up via Cognito + verify)
-        if (isCognitoConfigured()) {
-          const cognito = await cognitoSignIn({ email, password });
-          if (cognito.ok) {
-            return {
-              id: cognito.email,
-              email: cognito.email,
-              name: cognito.name,
-              image: null,
-              role: "customer",
-            };
+          // No Prisma user or wrong password: try Cognito (e.g. user signed up via Cognito + verify)
+          if (isCognitoConfigured()) {
+            const cognito = await cognitoSignIn({ email, password });
+            if (cognito.ok) {
+              return {
+                id: cognito.email,
+                email: cognito.email,
+                name: cognito.name,
+                image: null,
+                role: "customer",
+              };
+            }
+            throw new Error(cognito.error);
           }
-        }
 
-        return null;
+          throw new Error("Invalid email or password.");
+        } catch (err) {
+          if (err instanceof Error) throw err;
+          throw new Error("Invalid email or password.");
+        }
       },
     }),
   ],
