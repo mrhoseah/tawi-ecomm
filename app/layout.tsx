@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import SeoScripts from "@/components/SeoScripts";
 import { getSeoSettings } from "@/lib/seo";
+import PhoneCaptureDialog from "@/components/PhoneCaptureDialog";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,6 +50,7 @@ export default function RootLayout({
       >
         <Providers>
           {children}
+          <PhoneCaptureDialog />
           <SeoScripts />
         </Providers>
       </body>
