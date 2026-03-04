@@ -118,14 +118,6 @@ export default function MaintenancePage() {
           </p>
         )}
 
-        <div className="pt-4">
-          <Link
-            href="/sign-in"
-            className="text-red-600 hover:text-red-700 font-medium text-sm"
-          >
-            Staff? Sign in to admin
-          </Link>
-        </div>
       </div>
     </div>
   );
