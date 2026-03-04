@@ -76,7 +76,6 @@ export default function CheckoutPage() {
   }, []);
 
   const subtotal = getTotal();
-  const tax = (subtotal - discount) * 0.1;
 
   useEffect(() => {
     fetch("/api/shipping-methods")
@@ -189,6 +188,46 @@ export default function CheckoutPage() {
       .catch(() => setQuoteMethods([]))
       .finally(() => setQuoteLoading(false));
   }, [items, subtotal]);
+
+  const [taxSettings, setTaxSettings] = useState<{
+    enabled: boolean;
+    name: string;
+    rate: number;
+    country: string | null;
+  }>({
+    enabled: false,
+    name: "VAT",
+    rate: 0.16,
+    country: "Kenya",
+  });
+
+  useEffect(() => {
+    fetch("/api/tax-settings")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load tax settings");
+        return res.json();
+      })
+      .then((data) => {
+        setTaxSettings({
+          enabled: data.enabled ?? false,
+          name: data.name ?? "VAT",
+          rate: typeof data.rate === "number" ? data.rate : 0.16,
+          country: data.country ?? "Kenya",
+        });
+      })
+      .catch(() => {
+        // Fallback to defaults; checkout still works
+      });
+  }, []);
+
+  const taxableAmount = Math.max(subtotal - discount, 0);
+  const taxAppliesCountry =
+    !taxSettings.country ||
+    shippingInfo.country.toLowerCase() === taxSettings.country.toLowerCase();
+  const tax =
+    taxSettings.enabled && taxAppliesCountry
+      ? taxableAmount * (taxSettings.rate || 0)
+      : 0;
 
   const selectedQuote = quoteMethods.find((m) => m.id === shippingMethod);
   const fallbackMethod = shippingMethods.find((m) => m.id === shippingMethod);

@@ -51,6 +51,13 @@ interface CurrencyDetails {
   exchangeRateFallback: string;
 }
 
+interface TaxDetails {
+  enabled: boolean;
+  name: string;
+  rate: string;
+  country: string;
+}
+
 type ShippingMethod = {
   id: string;
   name: string;
@@ -96,6 +103,12 @@ export default function SettingsPage() {
     exchangeRateApiKey: "",
     exchangeRateFallback: "0.0077",
   });
+  const [tax, setTax] = useState<TaxDetails>({
+    enabled: false,
+    name: "VAT",
+    rate: "0.16",
+    country: "Kenya",
+  });
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
   const [shippingDialogOpen, setShippingDialogOpen] = useState(false);
   const [editingShipping, setEditingShipping] = useState<ShippingMethod | null>(null);
@@ -131,9 +144,10 @@ export default function SettingsPage() {
       fetch("/api/payment-settings").then((r) => r.json()),
       fetch("/api/seo-settings").then((r) => r.json()),
       fetch("/api/currency-settings").then((r) => r.json()),
+      fetch("/api/tax-settings").then((r) => r.json()).catch(() => ({ enabled: false, name: "VAT", rate: 0.16, country: "Kenya" })),
       fetch("/api/maintenance-settings").then((r) => r.json()).catch(() => ({ enabled: false, estimatedEndAt: null, message: null })),
     ];
-    Promise.all(fetches).then(([paymentData, seoData, currencyData, maintenanceData]) => {
+    Promise.all(fetches).then(([paymentData, seoData, currencyData, taxData, maintenanceData]) => {
           setSeo({
             siteName: seoData.siteName ?? "",
             tagline: seoData.tagline ?? "",
@@ -160,6 +174,12 @@ export default function SettingsPage() {
             exchangeRateApiUrl: currencyData.exchangeRateApiUrl ?? "",
             exchangeRateApiKey: currencyData.exchangeRateApiKey ?? "",
             exchangeRateFallback: currencyData.exchangeRateFallback != null ? String(currencyData.exchangeRateFallback) : "0.0077",
+          });
+          setTax({
+            enabled: taxData.enabled ?? false,
+            name: taxData.name ?? "VAT",
+            rate: taxData.rate != null ? String(taxData.rate) : "0.16",
+            country: taxData.country ?? "Kenya",
           });
           if (maintenanceData) {
             setMaintenance({
@@ -707,6 +727,87 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  Tax / VAT
+                </CardTitle>
+                <CardDescription>
+                  Configure VAT for orders. VAT is applied on the checkout subtotal minus discounts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 max-w-xl">
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={tax.enabled}
+                      onChange={(e) => setTax({ ...tax, enabled: e.target.checked })}
+                      disabled={role === "support"}
+                    />
+                    Enable VAT on orders
+                  </label>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Display name</label>
+                      <Input
+                        value={tax.name}
+                        onChange={(e) => setTax({ ...tax, name: e.target.value })}
+                        placeholder="VAT"
+                        readOnly={role === "support"}
+                        disabled={role === "support"}
+                        className="h-10"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Shown on checkout and order summaries (e.g. &quot;VAT&quot; or &quot;Sales Tax&quot;).
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Rate</label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={parseFloat(tax.rate || "0") * 100 || 0}
+                          onChange={(e) => {
+                            const percent = parseFloat(e.target.value || "0");
+                            const decimal = isNaN(percent) ? 0 : percent / 100;
+                            setTax({ ...tax, rate: String(decimal) });
+                          }}
+                          readOnly={role === "support"}
+                          disabled={role === "support"}
+                          className="h-10"
+                        />
+                        <span className="text-sm text-muted-foreground">%</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        For example, enter <span className="font-semibold">16</span> for 16% VAT.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Applies when shipping country is</label>
+                    <Input
+                      value={tax.country}
+                      onChange={(e) => setTax({ ...tax, country: e.target.value })}
+                      placeholder="Kenya"
+                      readOnly={role === "support"}
+                      disabled={role === "support"}
+                      className="h-10 max-w-xs"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Leave blank to apply VAT to all orders. When set, VAT only applies if the shipping country matches (case-insensitive).
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
               <strong>M-Pesa:</strong> Daraja API credentials are in{" "}
               <code className="rounded bg-amber-100 px-1 dark:bg-amber-900">.env.local</code>{" "}
@@ -721,7 +822,7 @@ export default function SettingsPage() {
               title={role === "support" ? "Only admins can edit" : undefined}
             >
               {saving ? <LoadingSpinner size="sm" /> : <Save className="h-5 w-5" />}
-              {saving ? "Saving..." : role === "support" ? "View Only (Admin can edit)" : "Save Bank Details"}
+              {saving ? "Saving..." : role === "support" ? "View Only (Admin can edit)" : "Save Bank & Tax Settings"}
             </Button>
           </form>
         </TabsContent>

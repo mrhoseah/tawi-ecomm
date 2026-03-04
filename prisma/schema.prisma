@@ -405,6 +405,15 @@ model CurrencySettings {
   updatedAt             DateTime @updatedAt
 }
 
+model TaxSettings {
+  id        String   @id  // singleton: use "default"
+  enabled   Boolean  @default(false)
+  name      String   @default("VAT") // Display name e.g. VAT, Sales Tax
+  rate      Float    @default(0.16)  // 16% VAT by default
+  country   String?           // Optional: only apply when shipping country matches (e.g. "Kenya")
+  updatedAt DateTime @updatedAt
+}
+
 model MaintenanceSettings {
   id             String    @id  // singleton: use "default"
   enabled        Boolean   @default(false)

@@ -24,7 +24,8 @@ export default function PromoBar() {
   }, []);
 
   const promoItems = items;
-  const showShopSale = true; // Always show Shop Sale link
+  // Only show the Shop Sale link when there is at least one active promo/offer
+  const showShopSale = promoItems.length > 0;
 
   if (loading || (promoItems.length === 0 && !showShopSale)) {
     return null;
