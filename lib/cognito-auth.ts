@@ -4,6 +4,7 @@ import {
   SignUpCommand,
   ConfirmSignUpCommand,
   ResendConfirmationCodeCommand,
+  InitiateAuthCommand,
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
   UsernameExistsException,
@@ -192,4 +193,77 @@ export async function cognitoConfirmForgotPassword(params: {
 
 export function isCognitoConfigured(): boolean {
   return !!(clientId && region);
+}
+
+/** Decode JWT payload (no verification; we already verified via Cognito auth) */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = Buffer.from(parts[1], "base64url").toString("utf8");
+    return JSON.parse(payload) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sign in with email + password via Cognito (USER_PASSWORD_AUTH).
+ * Use when the user exists in Cognito (e.g. signed up via Cognito and verified) but may not be in Prisma.
+ * Requires the app client to have USER_PASSWORD_AUTH enabled in Authentication flows.
+ */
+export async function cognitoSignIn(params: {
+  email: string;
+  password: string;
+}): Promise<
+  | { ok: true; email: string; name: string | null }
+  | { ok: false; error: string }
+> {
+  const client = getClient();
+  if (!client) return { ok: false, error: "Cognito not configured" };
+
+  const emailTrimmed = params.email.trim().toLowerCase();
+
+  const authParams: Record<string, string> = {
+    USERNAME: emailTrimmed,
+    PASSWORD: params.password,
+  };
+  if (clientSecret) {
+    authParams.SECRET_HASH = getSecretHash(emailTrimmed);
+  }
+
+  try {
+    const response = await client.send(
+      new InitiateAuthCommand({
+        ClientId: clientId,
+        AuthFlow: "USER_PASSWORD_AUTH" as const,
+        AuthParameters: authParams,
+      })
+    );
+
+    if (response.ChallengeName) {
+      return { ok: false, error: "Additional verification is required. Please try signing in with Google or use the link in your email." };
+    }
+
+    const idToken = response.AuthenticationResult?.IdToken;
+    if (!idToken) return { ok: false, error: "Sign-in failed." };
+
+    const payload = decodeJwtPayload(idToken);
+    const email = (payload?.email as string) ?? emailTrimmed;
+    const name = (payload?.name as string) ?? null;
+
+    return { ok: true, email, name };
+  } catch (err: unknown) {
+    if (err instanceof UserNotFoundException) {
+      return { ok: false, error: "Invalid email or password." };
+    }
+    if (err instanceof InvalidParameterException) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("USER_PASSWORD_AUTH") || msg.includes("not enabled")) {
+        return { ok: false, error: "Email/password sign-in is not enabled for this app." };
+      }
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
 }

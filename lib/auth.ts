@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma, ensurePrismaConnected } from "./prisma";
 import bcrypt from "bcryptjs";
 import authConfig from "@/auth.config";
+import { cognitoSignIn, isCognitoConfigured } from "./cognito-auth";
 
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 if (!authSecret && process.env.NODE_ENV === "production") {
@@ -32,26 +33,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email },
         });
 
-        if (!user || !user.password) {
-          return null;
+        if (user?.password) {
+          const isPasswordValid = await bcrypt.compare(
+            password,
+            user.password
+          );
+          if (isPasswordValid) {
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              role: user.role,
+            };
+          }
         }
 
-        const isPasswordValid = await bcrypt.compare(
-          password,
-          user.password
-        );
-
-        if (!isPasswordValid) {
-          return null;
+        // No Prisma user or wrong password: try Cognito (e.g. user signed up via Cognito + verify)
+        if (isCognitoConfigured()) {
+          const cognito = await cognitoSignIn({ email, password });
+          if (cognito.ok) {
+            return {
+              id: cognito.email,
+              email: cognito.email,
+              name: cognito.name,
+              image: null,
+              role: "customer",
+            };
+          }
         }
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          role: user.role,
-        };
+        return null;
       },
     }),
   ],
