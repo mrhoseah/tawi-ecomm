@@ -7,18 +7,34 @@ import type { NextAuthConfig } from "next-auth";
  * Do NOT add CredentialsProvider, Prisma, or bcrypt here -
  * they are Node.js-only and bloat the Edge bundle.
  */
-export default {
-  providers: [
+
+const providers: NextAuthConfig["providers"] = [];
+
+if (
+  process.env.COGNITO_CLIENT_ID &&
+  process.env.COGNITO_CLIENT_SECRET &&
+  process.env.COGNITO_ISSUER_URL
+) {
+  providers.push(
     CognitoProvider({
-      clientId: process.env.COGNITO_CLIENT_ID ?? "",
-      clientSecret: process.env.COGNITO_CLIENT_SECRET ?? "",
+      clientId: process.env.COGNITO_CLIENT_ID,
+      clientSecret: process.env.COGNITO_CLIENT_SECRET,
       issuer: process.env.COGNITO_ISSUER_URL,
-    }),
+    })
+  );
+}
+
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-    }),
-  ],
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    })
+  );
+}
+
+export default {
+  providers,
   session: {
     strategy: "jwt",
   },

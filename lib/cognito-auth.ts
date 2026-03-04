@@ -62,7 +62,8 @@ export async function cognitoSignUp(params: {
       return { ok: false, error: "An account with this email already exists." };
     }
     const msg = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: msg };
+    console.error("[COGNITO] SignUp error:", msg);
+    return { ok: false, error: "We could not create your account. Please try again." };
   }
 }
 
@@ -103,7 +104,8 @@ export async function cognitoConfirmSignUp(params: {
       }
     }
     const msg = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: msg };
+    console.error("[COGNITO] ConfirmSignUp error:", msg);
+    return { ok: false, error: "We could not verify your email. Please try again." };
   }
 }
 
@@ -130,7 +132,8 @@ export async function cognitoResendConfirmationCode(params: {
       return { ok: false, error: "No pending verification for this email. Try signing in or sign up first." };
     }
     const msg = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: msg };
+    console.error("[COGNITO] ResendConfirmationCode error:", msg);
+    return { ok: false, error: "We could not resend the verification code. Please try again." };
   }
 }
 
@@ -154,7 +157,8 @@ export async function cognitoForgotPassword(params: {
     return { ok: true };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: msg };
+    console.error("[COGNITO] ForgotPassword error:", msg);
+    return { ok: false, error: "We could not start the password reset. Please try again." };
   }
 }
 
@@ -188,7 +192,8 @@ export async function cognitoConfirmForgotPassword(params: {
       return { ok: false, error: "Reset code has expired. Request a new one." };
     }
     const msg = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: msg };
+    console.error("[COGNITO] ConfirmForgotPassword error:", msg);
+    return { ok: false, error: "We could not reset your password. Please try again." };
   }
 }
 
@@ -264,10 +269,15 @@ export async function cognitoSignIn(params: {
     if (err instanceof InvalidParameterException) {
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("USER_PASSWORD_AUTH") || msg.includes("not enabled")) {
-        return { ok: false, error: "Email/password sign-in is not enabled for this app. Enable ALLOW_USER_PASSWORD_AUTH in the Cognito app client." };
+        return {
+          ok: false,
+          error:
+            "Email/password sign-in is not enabled for this app. Contact support if this problem persists.",
+        };
       }
     }
     const msg = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: msg };
+    console.error("[COGNITO] SignIn error:", msg);
+    return { ok: false, error: "We could not sign you in. Please try again." };
   }
 }

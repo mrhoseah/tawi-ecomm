@@ -7,7 +7,7 @@ import { cognitoSignIn, isCognitoConfigured } from "./cognito-auth";
 
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 if (!authSecret && process.env.NODE_ENV === "production") {
-  console.error("SECURITY: AUTH_SECRET or NEXTAUTH_SECRET must be set in production");
+  throw new Error("SECURITY: AUTH_SECRET or NEXTAUTH_SECRET must be set in production");
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -26,7 +26,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const email = String(credentials.email).trim().toLowerCase();
-        const password = credentials.password as string;
+        const password = String(credentials.password);
+
+        const invalidError = new Error("Invalid email or password.");
 
         try {
           await ensurePrismaConnected();
@@ -36,10 +38,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           if (user?.password) {
             try {
-              const isPasswordValid = await bcrypt.compare(
-                password,
-                user.password
-              );
+              const isPasswordValid = await bcrypt.compare(password, user.password);
               if (isPasswordValid) {
                 return {
                   id: user.id,
@@ -50,11 +49,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 };
               }
             } catch {
-              // Invalid hash or compare error: fall through to try Cognito
+              // Invalid hash or compare error: fall through to generic error/Cognito
             }
           }
 
-          // No Prisma user or wrong password: try Cognito (e.g. user signed up via Cognito + verify)
           if (isCognitoConfigured()) {
             const cognito = await cognitoSignIn({ email, password });
             if (cognito.ok) {
@@ -66,13 +64,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 role: "customer",
               };
             }
-            throw new Error(cognito.error);
+            console.warn("[AUTH] Cognito sign-in failed:", cognito.error);
+            throw invalidError;
           }
 
-          throw new Error("Invalid email or password.");
+          throw invalidError;
         } catch (err) {
-          if (err instanceof Error) throw err;
-          throw new Error("Invalid email or password.");
+          if (err instanceof Error && err.message !== invalidError.message) {
+            console.error("[AUTH] Credentials authorize error:", err);
+          }
+          throw invalidError;
         }
       },
     }),
