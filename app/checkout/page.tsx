@@ -45,8 +45,10 @@ export default function CheckoutPage() {
     city: "",
     state: "",
     postalCode: "",
-    country: "US",
+    country: "Kenya",
   });
+
+  const [hasPrefilledShipping, setHasPrefilledShipping] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState("mpesa");
   const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null);
@@ -87,6 +89,81 @@ export default function CheckoutPage() {
       })
       .catch(() => {});
   }, []);
+
+  // Prefill shipping info from user's default address (if available)
+  useEffect(() => {
+    if (!session?.user || hasPrefilledShipping) return;
+
+    fetch("/api/addresses")
+      .then((res) => res.json())
+      .then((data) => {
+        const addresses = (data.addresses || []) as Array<{
+          type: string;
+          isDefault: boolean;
+          firstName: string;
+          lastName: string;
+          address1: string;
+          address2?: string | null;
+          city: string;
+          state?: string | null;
+          postalCode: string;
+          country: string;
+          phone?: string | null;
+        }>;
+
+        if (!addresses.length) return;
+
+        const shippingAddress =
+          addresses.find((a) => a.type === "shipping" && a.isDefault) ??
+          addresses.find((a) => a.type === "shipping") ??
+          addresses[0];
+
+        if (!shippingAddress) return;
+
+        setShippingInfo((prev) => ({
+          ...prev,
+          firstName: shippingAddress.firstName || prev.firstName,
+          lastName: shippingAddress.lastName || prev.lastName,
+          phone: shippingAddress.phone || prev.phone,
+          address1: shippingAddress.address1 || prev.address1,
+          address2: shippingAddress.address2 || prev.address2,
+          city: shippingAddress.city || prev.city,
+          state: shippingAddress.state || prev.state,
+          postalCode: shippingAddress.postalCode || prev.postalCode,
+          country: shippingAddress.country || prev.country,
+        }));
+
+        setHasPrefilledShipping(true);
+      })
+      .catch(() => {
+        // Ignore address prefill failures; user can still enter details manually
+      });
+  }, [session?.user, hasPrefilledShipping]);
+
+  // Fallback: prefill from session profile if no address prefill occurred
+  useEffect(() => {
+    if (!session?.user || hasPrefilledShipping) return;
+
+    const fullName = session.user.name || "";
+    const [firstNameFromName, ...restName] = fullName.split(" ").filter(Boolean);
+    const lastNameFromName = restName.join(" ");
+    const phoneFromSession = (session.user as any).phone as string | undefined;
+
+    setShippingInfo((prev) => ({
+      ...prev,
+      firstName: prev.firstName || firstNameFromName || "",
+      lastName: prev.lastName || lastNameFromName || "",
+      email: prev.email || session.user?.email || "",
+      phone: prev.phone || phoneFromSession || "",
+    }));
+  }, [session?.user, hasPrefilledShipping]);
+
+  // Reduce input for M-Pesa by defaulting phone number from shipping info
+  useEffect(() => {
+    if (!mpesaPhone && shippingInfo.phone) {
+      setMpesaPhone(shippingInfo.phone);
+    }
+  }, [shippingInfo.phone, mpesaPhone]);
 
   useEffect(() => {
     if (items.length === 0) return;
@@ -327,6 +404,11 @@ export default function CheckoutPage() {
               {/* Shipping Information */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-xl font-bold mb-4">Shipping Information</h2>
+                {session?.user && (
+                  <p className="text-sm text-gray-600 mb-4">
+                    We&apos;ve pre-filled your details from your account. Please confirm everything looks correct.
+                  </p>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">
@@ -431,7 +513,6 @@ export default function CheckoutPage() {
                     </label>
                     <input
                       type="text"
-                      required
                       value={shippingInfo.state}
                       onChange={(e) =>
                         setShippingInfo({ ...shippingInfo, state: e.target.value })
