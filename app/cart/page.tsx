@@ -62,22 +62,115 @@ export default function CartPage() {
   }
 
   if (items.length === 0) {
+    const hasSaved = savedItems.length > 0;
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-            <ShoppingBag className="h-24 w-24 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
-            <p className="text-gray-600 mb-8">
-              Start adding items to your cart to see them here.
-            </p>
-            <Link
-              href="/shop"
-              className="inline-flex items-center px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
-            >
-              Continue Shopping
-            </Link>
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-10">
+              <ShoppingBag className="h-24 w-24 text-gray-300 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-4">
+                {hasSaved ? "No items in your cart" : "Your cart is empty"}
+              </h2>
+              <p className="text-gray-600 mb-6">
+                {hasSaved
+                  ? "You have items saved for later below. Move them back to your cart when you're ready to checkout."
+                  : "Start adding items to your cart to see them here."}
+              </p>
+              <Link
+                href="/shop"
+                className="inline-flex items-center px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
+              >
+                Continue Shopping
+              </Link>
+            </div>
+
+            {hasSaved && (
+              <section className="mt-8">
+                <h3 className="text-xl font-bold mb-4">Saved for Later</h3>
+                <div className="space-y-4">
+                  {savedItems.map((savedItem, index) => (
+                    <div
+                      key={index}
+                      className="bg-white rounded-lg shadow-sm p-4 flex flex-col sm:flex-row gap-4"
+                    >
+                      <Link
+                        href={savedItem.slug ? `/product/${savedItem.slug}` : "#"}
+                        className="w-full sm:w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 block"
+                      >
+                        {savedItem.image ? (
+                          <img
+                            src={savedItem.image}
+                            alt={savedItem.name}
+                            className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                            No Image
+                          </div>
+                        )}
+                      </Link>
+                      <div className="flex-1">
+                        <Link href={savedItem.slug ? `/product/${savedItem.slug}` : "#"}>
+                          <h3 className="font-semibold mb-1 hover:text-red-600 transition-colors">
+                            {savedItem.name}
+                          </h3>
+                        </Link>
+                        {savedItem.size && (
+                          <p className="text-sm text-gray-600">Size: {savedItem.size}</p>
+                        )}
+                        {savedItem.color && (
+                          <p className="text-sm text-gray-600">Color: {savedItem.color}</p>
+                        )}
+                        {(savedItem.printedName || savedItem.printedNumber) && (
+                          <p className="text-sm text-gray-600">
+                            Printing:{" "}
+                            {[savedItem.printedName, savedItem.printedNumber && `#${savedItem.printedNumber}`]
+                              .filter(Boolean)
+                              .join(" ")}
+                          </p>
+                        )}
+                        <p className="text-lg font-bold text-red-600 mt-2">
+                          <Price amount={savedItem.price} />
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => {
+                            addItem({
+                              productId: savedItem.productId,
+                              slug: savedItem.slug,
+                              name: savedItem.name,
+                              price: savedItem.price,
+                              image: savedItem.image,
+                              quantity: 1,
+                              size: savedItem.size,
+                              color: savedItem.color,
+                              printedName: savedItem.printedName,
+                              printedNumber: savedItem.printedNumber,
+                              printingCost: savedItem.printingCost,
+                            });
+                            removeFromSaveForLater(
+                              savedItem.productId,
+                              savedItem.size,
+                              savedItem.color,
+                              savedItem.printedName,
+                              savedItem.printedNumber
+                            );
+                            setSavedItems(getSaveForLater());
+                            showToast("Moved back to cart", "success");
+                          }}
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+                        >
+                          Move to cart
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         </main>
         <Footer />
