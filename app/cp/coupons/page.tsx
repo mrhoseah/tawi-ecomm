@@ -292,14 +292,15 @@ export default function AdminCouponsPage() {
             Add Coupon
           </Button>
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-xl">
               <DialogHeader>
                 <DialogTitle>{editing ? "Edit Coupon" : "New Coupon"}</DialogTitle>
                 <DialogDescription>
                   {editing ? "Update the coupon details below." : "Create a new discount code."}
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Core settings */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-sm font-medium mb-1">Code *</label>
@@ -326,6 +327,7 @@ export default function AdminCouponsPage() {
                   </div>
                 </div>
 
+                {/* Discount rules */}
                 {form.type !== "free_shipping" && (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
@@ -368,6 +370,7 @@ export default function AdminCouponsPage() {
                   </label>
                 )}
 
+                {/* Validity & limits */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-sm font-medium mb-1">Min purchase ($)</label>
@@ -451,68 +454,81 @@ export default function AdminCouponsPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-1">Usage limit per user</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={form.usageLimitPerUser}
-                    onChange={(e) => setForm({ ...form, usageLimitPerUser: e.target.value })}
-                    placeholder="Unlimited"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Description (admin note)</label>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    rows={2}
-                    className="w-full rounded-md border px-3 py-2 text-sm"
-                    placeholder="e.g. Black Friday promo"
-                  />
-                </div>
-
-                <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 space-y-3 dark:border-amber-800 dark:bg-amber-950/30">
-                  <h4 className="text-sm font-medium text-amber-900 dark:text-amber-100">Landing page promo bar</h4>
-                  <p className="text-xs text-amber-800 dark:text-amber-200">
-                    Only coupons with &quot;Show on promo bar&quot; enabled appear in the discount banner above the nav menu. Uncheck to hide this offer from the landing page.
-                  </p>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={form.showOnPromoBar}
-                      onChange={(e) => setForm({ ...form, showOnPromoBar: e.target.checked })}
-                    />
-                    Show on landing page promo bar
-                  </label>
-                  {form.showOnPromoBar && (
-                    <div className="space-y-2 pt-1">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Promo bar label</label>
-                        <Input
-                          value={form.promoBarLabel}
-                          onChange={(e) => setForm({ ...form, promoBarLabel: e.target.value })}
-                          placeholder="e.g. Free shipping on orders over $50"
-                          className="bg-white dark:bg-gray-900"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Leave blank to auto-generate (e.g. &quot;Use code for 10% off&quot;)</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Sort order</label>
-                        <Input
-                          type="number"
-                          min={0}
-                          value={form.promoBarSortOrder}
-                          onChange={(e) => setForm({ ...form, promoBarSortOrder: e.target.value })}
-                          placeholder="0"
-                          className="w-24 bg-white dark:bg-gray-900"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Lower = first in the bar</p>
-                      </div>
+                <details className="rounded-lg border bg-muted/20 px-3 py-2 text-sm">
+                  <summary className="cursor-pointer select-none font-medium">
+                    Advanced limits
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Usage limit per user</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={form.usageLimitPerUser}
+                        onChange={(e) => setForm({ ...form, usageLimitPerUser: e.target.value })}
+                        placeholder="Unlimited"
+                      />
                     </div>
-                  )}
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Description (admin note)</label>
+                      <textarea
+                        value={form.description}
+                        onChange={(e) => setForm({ ...form, description: e.target.value })}
+                        rows={2}
+                        className="w-full rounded-md border px-3 py-2 text-sm"
+                        placeholder="e.g. Black Friday promo"
+                      />
+                    </div>
+                  </div>
+                </details>
+
+                {/* Promo bar settings (advanced) */}
+                <details className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 space-y-3 dark:border-amber-800 dark:bg-amber-950/30">
+                  <summary className="cursor-pointer select-none text-sm font-medium text-amber-900 dark:text-amber-100">
+                    Landing page promo bar (optional)
+                  </summary>
+                  <div className="mt-2 space-y-3">
+                    <p className="text-xs text-amber-800 dark:text-amber-200">
+                      Only coupons with &quot;Show on promo bar&quot; enabled appear in the discount banner above the nav menu.
+                    </p>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={form.showOnPromoBar}
+                        onChange={(e) => setForm({ ...form, showOnPromoBar: e.target.checked })}
+                      />
+                      Show on landing page promo bar
+                    </label>
+                    {form.showOnPromoBar && (
+                      <div className="space-y-2 pt-1">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Promo bar label</label>
+                          <Input
+                            value={form.promoBarLabel}
+                            onChange={(e) => setForm({ ...form, promoBarLabel: e.target.value })}
+                            placeholder="e.g. Free shipping on orders over $50"
+                            className="bg-white dark:bg-gray-900"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Leave blank to auto-generate (e.g. &quot;Use code for 10% off&quot;).
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Sort order</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={form.promoBarSortOrder}
+                            onChange={(e) => setForm({ ...form, promoBarSortOrder: e.target.value })}
+                            placeholder="0"
+                            className="w-24 bg-white dark:bg-gray-900"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">Lower = first in the bar</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </details>
 
                 {editing && (
                   <label className="flex items-center gap-2">
