@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { prisma } from "@/lib/prisma";
-import { Newspaper, Zap, Trophy } from "lucide-react";
+import { Newspaper, Zap, Trophy, Calendar } from "lucide-react";
 import { NewsContent } from "./NewsContent";
 
 export const metadata: Metadata = {
@@ -24,6 +24,10 @@ async function getNews() {
 
 export default async function NewsPage() {
   const news = await getNews();
+  const totalArticles = news.length;
+  const allTeams = Array.from(new Set(news.flatMap((item) => item.teams)));
+  const totalTeams = allTeams.length;
+  const latestPublishedAt = news[0]?.publishedAt;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -63,6 +67,48 @@ export default async function NewsPage() {
                 </h1>
                 <p className="text-red-100/90 text-lg sm:text-xl mt-2 max-w-2xl">
                   Match reports, team updates, and the biggest stories from the world of sports.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3 max-w-3xl">
+              <div className="rounded-xl bg-white/5 px-4 py-3 shadow-sm ring-1 ring-white/10 backdrop-blur">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-200">
+                  Articles
+                </p>
+                <p className="mt-1 text-2xl font-bold">
+                  {totalArticles.toString().padStart(2, "0")}
+                </p>
+                <p className="mt-0.5 text-xs text-red-100/80">
+                  Latest stories from across the league.
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/5 px-4 py-3 shadow-sm ring-1 ring-white/10 backdrop-blur">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-200">
+                  Teams Covered
+                </p>
+                <p className="mt-1 text-2xl font-bold">
+                  {totalTeams.toString().padStart(2, "0")}
+                </p>
+                <p className="mt-0.5 text-xs text-red-100/80">
+                  Track your club&apos;s form and stories.
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/5 px-4 py-3 shadow-sm ring-1 ring-white/10 backdrop-blur">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-red-200">
+                  <Calendar className="h-3.5 w-3.5" />
+                  Last Update
+                </p>
+                <p className="mt-1 text-sm font-medium">
+                  {latestPublishedAt
+                    ? new Date(latestPublishedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "—"}
+                </p>
+                <p className="mt-0.5 text-xs text-red-100/80">
+                  Refreshed whenever a new story drops.
                 </p>
               </div>
             </div>

@@ -11,18 +11,24 @@ import { Mail, Phone, MapPin } from "lucide-react";
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       <main className="flex-1 py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h1 className="text-center text-3xl md:text-4xl font-bold text-gray-900 mb-12">
-            Contact Us
-          </h1>
+          <div className="max-w-3xl mx-auto text-center mb-12">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+              Contact Us
+            </h1>
+            <p className="text-gray-600 text-sm md:text-base">
+              Have a question about an order, a product, or partnering with Tawi Shop?
+              Reach out and our team will get back to you as soon as possible.
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
             {/* Left sidebar - Contact info */}
-            <aside className="lg:col-span-1 space-y-8">
-              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <aside className="lg:col-span-1 space-y-6">
+              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center">
                     <Mail className="h-6 w-6 text-red-600" />
@@ -38,11 +44,14 @@ export default function ContactPage() {
                     <p className="text-sm text-gray-500 mt-1">
                       We&apos;ll respond within 24 hours
                     </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Ideal for general questions, feedback, and partnership inquiries.
+                    </p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center">
                     <Phone className="h-6 w-6 text-red-600" />
@@ -58,11 +67,14 @@ export default function ContactPage() {
                     <p className="text-sm text-gray-500 mt-1">
                       Mon–Fri 9am–6pm EAT
                     </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      For urgent order issues or time-sensitive support.
+                    </p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center">
                     <MapPin className="h-6 w-6 text-red-600" />
@@ -79,6 +91,10 @@ export default function ContactPage() {
                     </p>
                   </div>
                 </div>
+                <p className="mt-4 text-xs text-gray-400">
+                  In-person visits are currently by appointment only. Please contact us in advance
+                  so we can make sure the right team member is available to assist you.
+                </p>
               </div>
             </aside>
 
