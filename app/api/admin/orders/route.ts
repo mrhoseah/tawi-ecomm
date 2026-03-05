@@ -20,8 +20,11 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);
     const offset = (page - 1) * limit;
     const status = searchParams.get("status") || undefined;
+    const paymentStatus = searchParams.get("paymentStatus") || undefined;
 
-    const where = status ? { status } : {};
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
+    if (paymentStatus) where.paymentStatus = paymentStatus;
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({

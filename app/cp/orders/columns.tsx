@@ -3,7 +3,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
-import { ADMIN_PATH } from "@/lib/constants";
 
 export type AdminOrder = {
   id: string;
@@ -24,7 +23,7 @@ export const orderColumns: ColumnDef<AdminOrder>[] = [
       const orderNum = row.getValue("orderNumber") as string;
       return (
         <Link
-          href={`/order/${orderNum}`}
+          href={`/cp/orders/${row.original.id}`}
           className="font-medium text-primary hover:underline"
         >
           #{orderNum}
@@ -51,26 +50,66 @@ export const orderColumns: ColumnDef<AdminOrder>[] = [
     ),
   },
   {
+    accessorKey: "paymentMethod",
+    header: "Method",
+    cell: ({ row }) => {
+      const method = (row.getValue("paymentMethod") as string | null) || "—";
+      const label =
+        method === "mpesa"
+          ? "M‑Pesa"
+          : method === "bank"
+            ? "Bank"
+            : method === "paypal"
+              ? "PayPal"
+              : method;
+      return (
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </span>
+      );
+    },
+  },
+  {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as string;
+      const status = (row.getValue("status") as string) || "";
+      const normalized = status.toLowerCase();
       const variant =
-        status === "delivered"
+        normalized === "delivered"
           ? "default"
-          : status === "cancelled"
-            ? "secondary"
-            : "outline";
-      return <Badge variant={variant}>{status}</Badge>;
+          : normalized === "shipped"
+            ? "default"
+            : normalized === "processing"
+              ? "outline"
+              : normalized === "cancelled"
+                ? "secondary"
+                : "outline";
+      const label = normalized
+        ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+        : "—";
+      return <Badge variant={variant}>{label}</Badge>;
     },
   },
   {
     accessorKey: "paymentStatus",
     header: "Payment",
     cell: ({ row }) => {
-      const ps = row.getValue("paymentStatus") as string;
+      const ps = (row.getValue("paymentStatus") as string) || "";
+      const normalized = ps.toLowerCase();
+      const variant =
+        normalized === "paid"
+          ? "default"
+          : normalized === "refunded"
+            ? "secondary"
+            : normalized === "failed"
+              ? "secondary"
+              : "outline";
+      const label = normalized
+        ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+        : "—";
       return (
-        <Badge variant={ps === "paid" ? "default" : "outline"}>{ps}</Badge>
+        <Badge variant={variant}>{label}</Badge>
       );
     },
   },

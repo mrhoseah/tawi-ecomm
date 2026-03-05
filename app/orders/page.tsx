@@ -14,6 +14,7 @@ interface Order {
   orderNumber: string;
   status: string;
   paymentStatus: string;
+  paymentMethod?: string | null;
   total: number;
   createdAt: string;
   items: Array<{
@@ -30,6 +31,7 @@ export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "completed" | "cancelled">("all");
 
   useEffect(() => {
     if (!session) {
@@ -90,12 +92,81 @@ export default function OrdersPage() {
     }
   };
 
+  const visibleOrders = orders.filter((order) => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "completed") return order.status === "delivered";
+    if (statusFilter === "cancelled") return order.status === "cancelled";
+    return order.status !== "delivered" && order.status !== "cancelled";
+  });
+
+  const getPaymentLabel = (order: Order) => {
+    if (order.paymentStatus === "paid") return "Paid";
+    if (order.paymentStatus === "pending") {
+      if (order.paymentMethod === "bank") return "Awaiting bank transfer";
+      if (order.paymentMethod === "mpesa") return "Awaiting M‑Pesa confirmation";
+      return "Payment pending";
+    }
+    if (order.paymentStatus === "failed") return "Payment failed";
+    if (order.paymentStatus === "refunded") return "Refunded";
+    return order.paymentStatus;
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 py-8">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold mb-8">My Orders</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <h1 className="text-3xl font-bold">My Orders</h1>
+            {orders.length > 0 && (
+              <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 p-1 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("all")}
+                  className={`px-3 py-1 rounded-full ${
+                    statusFilter === "all"
+                      ? "bg-white shadow-sm font-semibold"
+                      : "text-gray-600"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("active")}
+                  className={`px-3 py-1 rounded-full ${
+                    statusFilter === "active"
+                      ? "bg-white shadow-sm font-semibold"
+                      : "text-gray-600"
+                  }`}
+                >
+                  Active
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("completed")}
+                  className={`px-3 py-1 rounded-full ${
+                    statusFilter === "completed"
+                      ? "bg-white shadow-sm font-semibold"
+                      : "text-gray-600"
+                  }`}
+                >
+                  Completed
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter("cancelled")}
+                  className={`px-3 py-1 rounded-full ${
+                    statusFilter === "cancelled"
+                      ? "bg-white shadow-sm font-semibold"
+                      : "text-gray-600"
+                  }`}
+                >
+                  Cancelled
+                </button>
+              </div>
+            )}
+          </div>
 
           {orders.length === 0 ? (
             <div className="text-center py-16">
@@ -111,9 +182,25 @@ export default function OrdersPage() {
                 Start Shopping
               </Link>
             </div>
+          ) : visibleOrders.length === 0 ? (
+            <div className="text-center py-16 text-gray-600">
+              <p className="font-medium mb-2">
+                No {statusFilter === "active" ? "active" : statusFilter} orders.
+              </p>
+              <p className="text-sm">
+                Try a different filter or{" "}
+                <Link
+                  href="/shop"
+                  className="text-red-600 hover:underline font-medium"
+                >
+                  continue shopping
+                </Link>
+                .
+              </p>
+            </div>
           ) : (
             <div className="space-y-4">
-              {orders.map((order) => (
+              {visibleOrders.map((order) => (
                 <Link
                   key={order.id}
                   href={`/order/${order.orderNumber}`}
@@ -159,7 +246,7 @@ export default function OrdersPage() {
                         ${order.total.toFixed(2)}
                       </div>
                       <div className="text-sm text-gray-600 mt-1">
-                        Payment: {order.paymentStatus}
+                        {getPaymentLabel(order)}
                       </div>
                     </div>
                   </div>

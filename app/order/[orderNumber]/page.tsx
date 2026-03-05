@@ -96,13 +96,6 @@ export default function OrderPage() {
   const orderNumber = params.orderNumber as string;
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const [adminSaving, setAdminSaving] = useState(false);
-  const [adminForm, setAdminForm] = useState({
-    status: "",
-    paymentStatus: "",
-    trackingNumber: "",
-    trackingCarrier: "",
-  });
 
   useEffect(() => {
     if (!session) {
@@ -118,14 +111,6 @@ export default function OrderPage() {
           return;
         }
         setOrder(data.order);
-        if (data.order) {
-          setAdminForm({
-            status: data.order.status,
-            paymentStatus: data.order.paymentStatus,
-            trackingNumber: data.order.trackingNumber || "",
-            trackingCarrier: data.order.trackingCarrier || "",
-          });
-        }
         setLoading(false);
       })
       .catch(() => {
@@ -159,41 +144,6 @@ export default function OrderPage() {
         return <Package className="h-6 w-6 text-yellow-600" />;
       default:
         return <Clock className="h-6 w-6 text-gray-600" />;
-    }
-  };
-
-  const role = (session?.user as { role?: string })?.role;
-  const isAdmin = role === "admin" || role === "support";
-
-  const handleAdminSave = async () => {
-    if (!order?.id || !isAdmin) return;
-    setAdminSaving(true);
-    try {
-      const res = await fetch(`/api/admin/orders/${order.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: adminForm.status || undefined,
-          paymentStatus: adminForm.paymentStatus || undefined,
-          trackingNumber: adminForm.trackingNumber || undefined,
-          trackingCarrier: adminForm.trackingCarrier || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
-      if (data.order) {
-        setOrder((o) => (o ? { ...o, ...data.order } : null));
-        setAdminForm({
-          status: data.order.status,
-          paymentStatus: data.order.paymentStatus,
-          trackingNumber: data.order.trackingNumber || "",
-          trackingCarrier: data.order.trackingCarrier || "",
-        });
-      }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update");
-    } finally {
-      setAdminSaving(false);
     }
   };
 
@@ -377,75 +327,6 @@ export default function OrderPage() {
                       );
                     })}
                   </div>
-
-                  {isAdmin && (
-                    <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
-                      <h3 className="font-semibold text-gray-900 mb-3">Admin: Update Order</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Status</label>
-                          <select
-                            value={adminForm.status}
-                            onChange={(e) => setAdminForm({ ...adminForm, status: e.target.value })}
-                            className="w-full px-3 py-2 border rounded-lg text-sm"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="processing">Processing</option>
-                            <option value="shipped">Shipped</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Payment Status</label>
-                          <select
-                            value={adminForm.paymentStatus}
-                            onChange={(e) => setAdminForm({ ...adminForm, paymentStatus: e.target.value })}
-                            className="w-full px-3 py-2 border rounded-lg text-sm"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="paid">Paid</option>
-                            <option value="failed">Failed</option>
-                            <option value="refunded">Refunded</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Tracking Number</label>
-                          <input
-                            type="text"
-                            value={adminForm.trackingNumber}
-                            onChange={(e) => setAdminForm({ ...adminForm, trackingNumber: e.target.value })}
-                            placeholder="e.g. 1Z999AA10123456784"
-                            className="w-full px-3 py-2 border rounded-lg text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Carrier</label>
-                          <select
-                            value={adminForm.trackingCarrier}
-                            onChange={(e) => setAdminForm({ ...adminForm, trackingCarrier: e.target.value })}
-                            className="w-full px-3 py-2 border rounded-lg text-sm"
-                          >
-                            <option value="">—</option>
-                            <option value="DHL">DHL</option>
-                            <option value="FedEx">FedEx</option>
-                            <option value="UPS">UPS</option>
-                            <option value="USPS">USPS</option>
-                            <option value="Royal Mail">Royal Mail</option>
-                            <option value="Other">Other</option>
-                          </select>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleAdminSave}
-                        disabled={adminSaving}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {adminSaving ? "Saving…" : "Save changes"}
-                      </button>
-                    </div>
-                  )}
 
                   {order.trackingNumber && (
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg border">

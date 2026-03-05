@@ -17,7 +17,7 @@ import { useToast } from "@/components/Toast";
 export default function CartPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const { items, updateQuantity, removeItem, getTotal, clearCart, addItem } =
+  const { items, updateQuantity, removeItem, getTotal, clearCart, addItem, setItems } =
     useCartStore();
   const [isLoading, setIsLoading] = useState(true);
   const [savedItems, setSavedItems] = useState<any[]>([]);
@@ -26,16 +26,71 @@ export default function CartPage() {
   const [couponFreeShipping, setCouponFreeShipping] = useState(false);
   const { showToast } = useToast();
 
+  const isLoggedIn = !!session;
+
   useEffect(() => {
     // Load cart from server if user is logged in and merge with local cart
-    if (session) {
+    if (isLoggedIn) {
       fetch("/api/cart")
         .then((res) => res.json())
         .then((data) => {
           if (data.items && data.items.length > 0) {
-            // Merge server cart with local cart
-            // For now, we'll keep local cart as primary since it's more up-to-date
-            // In production, you might want more sophisticated merging logic
+            const serverItems = data.items.map((serverItem: any) => {
+              const basePrice = serverItem.product?.price ?? 0;
+              const printingCost = serverItem.printingCost ?? 0;
+              const unitPrice = basePrice + printingCost;
+
+              return {
+                serverId: String(serverItem.id),
+                productId: serverItem.productId,
+                slug: serverItem.product?.slug ?? undefined,
+                name: serverItem.product?.name ?? "",
+                price: unitPrice,
+                image: serverItem.product?.images?.[0] ?? "",
+                quantity: serverItem.quantity,
+                size: serverItem.size || undefined,
+                color: serverItem.color || undefined,
+                printedName: serverItem.printedName || undefined,
+                printedNumber: serverItem.printedNumber || undefined,
+                printingCost: printingCost || undefined,
+              };
+            });
+
+            const merged: typeof serverItems = [];
+
+            // Helper to check if two items represent the same variant
+            const isSameVariant = (a: any, b: any) =>
+              a.productId === b.productId &&
+              (a.size || undefined) === (b.size || undefined) &&
+              (a.color || undefined) === (b.color || undefined) &&
+              (a.printedName || "") === (b.printedName || "") &&
+              (a.printedNumber || "") === (b.printedNumber || "");
+
+            // Start with local items and merge in matching server data (keeping higher quantity)
+            items.forEach((localItem: any) => {
+              const match = serverItems.find((s: any) => isSameVariant(s, localItem));
+              if (match) {
+                merged.push({
+                  ...localItem,
+                  quantity: Math.max(localItem.quantity, match.quantity),
+                  serverId: match.serverId,
+                  price: match.price,
+                  printingCost: match.printingCost,
+                });
+              } else {
+                merged.push(localItem);
+              }
+            });
+
+            // Add any remaining server items not present locally
+            serverItems.forEach((serverItem: any) => {
+              const exists = merged.some((m) => isSameVariant(m, serverItem));
+              if (!exists) {
+                merged.push(serverItem);
+              }
+            });
+
+            setItems(merged as any);
           }
           setIsLoading(false);
         })
@@ -47,7 +102,60 @@ export default function CartPage() {
 
     // Load saved for later items
     setSavedItems(getSaveForLater());
-  }, [session]);
+  }, [isLoggedIn, items, setItems]);
+
+  const syncQuantityWithServer = async (item: any, quantity: number) => {
+    if (!isLoggedIn || !item.serverId) return;
+    try {
+      await fetch("/api/cart", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: item.serverId,
+          quantity,
+        }),
+      });
+    } catch (error) {
+      console.error("Error syncing cart quantity:", error);
+    }
+  };
+
+  const syncRemovalWithServer = async (item: any) => {
+    if (!isLoggedIn || !item.serverId) return;
+    try {
+      const url = new URL("/api/cart", window.location.origin);
+      url.searchParams.set("id", item.serverId);
+      await fetch(url.toString(), {
+        method: "DELETE",
+      });
+    } catch (error) {
+      console.error("Error syncing cart removal:", error);
+    }
+  };
+
+  const handleUpdateQuantity = async (item: any, nextQuantity: number) => {
+    if (nextQuantity < 1) return;
+    updateQuantity(
+      item.productId,
+      nextQuantity,
+      item.size,
+      item.color,
+      item.printedName,
+      item.printedNumber
+    );
+    await syncQuantityWithServer(item, nextQuantity);
+  };
+
+  const handleRemoveItem = async (item: any) => {
+    removeItem(
+      item.productId,
+      item.size,
+      item.color,
+      item.printedName,
+      item.printedNumber
+    );
+    await syncRemovalWithServer(item);
+  };
 
   if (isLoading) {
     return (
@@ -266,17 +374,13 @@ export default function CartPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center border rounded-lg">
                         <button
-                          onClick={() =>
-                            updateQuantity(
-                              item.productId,
-                              item.quantity - 1,
-                              item.size,
-                              item.color,
-                              item.printedName,
-                              item.printedNumber
-                            )
-                          }
-                          className="px-3 py-1 hover:bg-gray-100"
+                          onClick={() => handleUpdateQuantity(item, item.quantity - 1)}
+                          disabled={item.quantity <= 1}
+                          className={`px-3 py-1 hover:bg-gray-100 ${
+                            item.quantity <= 1
+                              ? "text-gray-300 cursor-not-allowed hover:bg-transparent"
+                              : ""
+                          }`}
                         >
                           <Minus className="h-4 w-4" />
                         </button>
@@ -284,16 +388,7 @@ export default function CartPage() {
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() =>
-                            updateQuantity(
-                              item.productId,
-                              item.quantity + 1,
-                              item.size,
-                              item.color,
-                              item.printedName,
-                              item.printedNumber
-                            )
-                          }
+                          onClick={() => handleUpdateQuantity(item, item.quantity + 1)}
                           className="px-3 py-1 hover:bg-gray-100"
                         >
                           <Plus className="h-4 w-4" />
@@ -303,32 +398,30 @@ export default function CartPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
-                                    saveForLater({
-                                      productId: item.productId,
-                                      slug: item.slug || "",
-                                      name: item.name,
-                                      price: item.price,
-                                      image: item.image,
-                                      size: item.size,
-                                      color: item.color,
-                                      printedName: item.printedName,
-                                      printedNumber: item.printedNumber,
-                                      printingCost: item.printingCost,
-                                    });
-                                    removeItem(item.productId, item.size, item.color, item.printedName, item.printedNumber);
-                                    setSavedItems(getSaveForLater());
-                                    showToast("Item saved for later", "success");
-                                  }}
-                                  className="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-sm transition-colors"
-                                  title="Save for later"
-                                >
-                                  <Heart className="h-4 w-4" />
-                                  Save
-                                </button>
+                            saveForLater({
+                              productId: item.productId,
+                              slug: item.slug || "",
+                              name: item.name,
+                              price: item.price,
+                              image: item.image,
+                              size: item.size,
+                              color: item.color,
+                              printedName: item.printedName,
+                              printedNumber: item.printedNumber,
+                              printingCost: item.printingCost,
+                            });
+                            handleRemoveItem(item);
+                            setSavedItems(getSaveForLater());
+                            showToast("Item saved for later", "success");
+                          }}
+                          className="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-sm transition-colors"
+                          title="Save for later"
+                        >
+                          <Heart className="h-4 w-4" />
+                          Save
+                        </button>
                         <button
-                          onClick={() =>
-                            removeItem(item.productId, item.size, item.color, item.printedName, item.printedNumber)
-                          }
+                          onClick={() => handleRemoveItem(item)}
                           className="text-red-600 hover:text-red-700 flex items-center gap-1"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -445,7 +538,7 @@ export default function CartPage() {
             <div className="lg:col-span-1">
               <div className="bg-white rounded-lg shadow-sm p-6 sticky top-20">
                 <h2 className="text-xl font-bold mb-4">Order Summary</h2>
-                
+
                 {/* Coupon Input */}
                 <div className="mb-4">
                   <CouponInput
@@ -456,6 +549,14 @@ export default function CartPage() {
                     userId={session?.user?.id ?? null}
                   />
                 </div>
+
+                {appliedCoupon && (
+                  <div className="mb-4">
+                    <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+                      Coupon <span className="mx-1 font-semibold">{appliedCoupon}</span> applied
+                    </span>
+                  </div>
+                )}
 
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-gray-600">
@@ -491,6 +592,11 @@ export default function CartPage() {
                     <span>Total</span>
                     <span><Price amount={total} /></span>
                   </div>
+                </div>
+
+                <div className="mt-2 text-xs text-gray-500 space-y-1">
+                  <p>Secure checkout with encrypted payment.</p>
+                  <p>Fast regional delivery and easy returns.</p>
                 </div>
 
                 {session ? (

@@ -2,6 +2,11 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
 export interface CartItem {
+  /**
+   * Optional server-side cart item identifier (from Prisma).
+   * Used to sync quantity/removal changes for logged-in users.
+   */
+  serverId?: string;
   productId: string;
   slug?: string;
   name: string;
@@ -20,6 +25,7 @@ interface CartStore {
   addItem: (item: CartItem) => void;
   removeItem: (productId: string, size?: string, color?: string, printedName?: string, printedNumber?: string) => void;
   updateQuantity: (productId: string, quantity: number, size?: string, color?: string, printedName?: string, printedNumber?: string) => void;
+  setItems: (items: CartItem[]) => void;
   clearCart: () => void;
   getTotal: () => number;
   getItemCount: () => number;
@@ -86,6 +92,7 @@ const createCartStore = () =>
           );
           set({ items });
         },
+        setItems: (items) => set({ items }),
         clearCart: () => set({ items: [] }),
         getTotal: () => {
           return get().items.reduce(
@@ -117,6 +124,7 @@ export const useCartStore =
           set({ items: [...get().items, item] }), // simple append on server
         removeItem: () => set({ items: [] }),
         updateQuantity: () => {},
+        setItems: (items) => set({ items }),
         clearCart: () => set({ items: [] }),
         getTotal: () =>
           get().items.reduce(
