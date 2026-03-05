@@ -8,24 +8,6 @@ const AUTH_PAGES = ["/sign-in", "/sign-up", "/sign-up/verify", "/forgot-password
 const PROTECTED_ACCOUNT = "/account";
 const PROTECTED_ADMIN = "/cp";
 
-/** Paths that stay accessible during maintenance (admin, auth, maintenance page) */
-const MAINTENANCE_ALLOWED = [
-  "/maintenance",
-  "/cp",
-  "/sign-in",
-  "/sign-up",
-  "/sign-up/verify",
-  "/sign-up/success",
-  "/forgot-password",
-  "/reset-password",
-  "/auth/signin",
-  "/auth/signup",
-];
-
-function isMaintenanceAllowed(pathname: string): boolean {
-  return MAINTENANCE_ALLOWED.some((p) => pathname.startsWith(p));
-}
-
 /** Build public origin from request (Vercel may pass internal URLs, use forwarded headers) */
 function getPublicOrigin(req: Request): string {
   const headers = req.headers;
@@ -39,6 +21,7 @@ export default auth(async (req) => {
   const session = req.auth;
   const role = (session?.user as { role?: string })?.role;
   const isLoggedIn = !!session?.user;
+  const isAdmin = role === "admin";
   const base = getPublicOrigin(req);
 
   const isAuthPage = AUTH_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/"));
@@ -60,19 +43,20 @@ export default auth(async (req) => {
     return res;
   }
 
-  // Check maintenance mode for affected paths
-  if (!isMaintenanceAllowed(pathname)) {
-    try {
-      const res = await fetch(`${base}/api/maintenance-settings`, {
-        headers: { "Cache-Control": "no-store" },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (data.enabled) {
-        return NextResponse.redirect(new URL("/maintenance", base));
-      }
-    } catch {
-      // If fetch fails, allow request to proceed
+  // Maintenance mode: when enabled, only auth pages and /maintenance stay open.
+  // Any other route is blocked for non-admins (even if logged in).
+  try {
+    const res = await fetch(`${base}/api/maintenance-settings`, {
+      headers: { "Cache-Control": "no-store" },
+    });
+    const data = await res.json().catch(() => ({}));
+    const isMaintenancePage = pathname.startsWith("/maintenance");
+
+    if (data.enabled && !isMaintenancePage && !isAuthPage && !isAdmin) {
+      return NextResponse.redirect(new URL("/maintenance", base));
     }
+  } catch {
+    // If fetch fails, allow request to proceed
   }
 
   // Apply security headers to all responses
