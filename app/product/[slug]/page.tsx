@@ -63,13 +63,17 @@ export async function generateMetadata({
   };
 }
 
-async function getRelatedProducts(category: string, currentProductId: string) {
+async function getRelatedProducts(product: { id: string; category: string; tags: string[] }) {
   try {
+    const hasTeamTags = Array.isArray(product.tags) && product.tags.length > 0;
+
     const products = await prisma.product.findMany({
       where: {
-        category,
         active: true,
-        id: { not: currentProductId },
+        id: { not: product.id },
+        ...(hasTeamTags
+          ? { tags: { hasSome: product.tags } }
+          : { category: product.category }),
       },
       take: 4,
       orderBy: { createdAt: "desc" },
@@ -97,7 +101,7 @@ export default async function ProductPage({
     notFound();
   }
 
-  const relatedProducts = await getRelatedProducts(product.category, product.id);
+  const relatedProducts = await getRelatedProducts(product);
 
   return (
     <div className="min-h-screen flex flex-col">

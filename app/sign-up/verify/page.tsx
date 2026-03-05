@@ -10,6 +10,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 function VerifyForm() {
   const searchParams = useSearchParams();
   const emailParam = searchParams.get("email") ?? "";
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
   const [email, setEmail] = useState(emailParam);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -37,7 +38,14 @@ function VerifyForm() {
         setError(data.error || "Verification failed");
         return;
       }
-      window.location.href = `/sign-up/success?email=${encodeURIComponent(emailTrimmed)}&flow=cognito`;
+      const params = new URLSearchParams({
+        email: emailTrimmed,
+        flow: "cognito",
+      });
+      if (callbackUrl) {
+        params.set("callbackUrl", callbackUrl);
+      }
+      window.location.href = `/sign-up/success?${params.toString()}`;
     } catch {
       setError("An error occurred.");
     } finally {

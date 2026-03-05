@@ -75,6 +75,75 @@ export async function PATCH(
       }
     }
 
+    const nextPrice =
+      data.price !== undefined
+        ? (data.price as number | null)
+        : product.price;
+    const nextCompareAt =
+      data.compareAtPrice !== undefined
+        ? (data.compareAtPrice as number | null)
+        : product.compareAtPrice;
+    const nextStock =
+      data.stock !== undefined
+        ? (data.stock as number)
+        : product.stock;
+    const nextLowStockThreshold =
+      data.lowStockThreshold !== undefined
+        ? (data.lowStockThreshold as number)
+        : product.lowStockThreshold;
+    const nextImages =
+      data.images !== undefined
+        ? ((data.images as unknown[]) ?? [])
+        : product.images;
+    const nextActive =
+      data.active !== undefined
+        ? (data.active as boolean)
+        : product.active;
+    const nextOnSale =
+      data.onSale !== undefined
+        ? (data.onSale as boolean)
+        : product.onSale;
+
+    if (nextPrice == null || Number.isNaN(nextPrice) || nextPrice <= 0) {
+      return NextResponse.json(
+        { error: "price must be a number greater than 0" },
+        { status: 400 }
+      );
+    }
+    if (nextStock < 0) {
+      return NextResponse.json(
+        { error: "stock cannot be negative" },
+        { status: 400 }
+      );
+    }
+    if (nextLowStockThreshold != null && nextLowStockThreshold < 0) {
+      return NextResponse.json(
+        { error: "lowStockThreshold cannot be negative" },
+        { status: 400 }
+      );
+    }
+    if (nextOnSale) {
+      if (nextCompareAt == null || Number.isNaN(nextCompareAt)) {
+        return NextResponse.json(
+          { error: "compareAtPrice is required when onSale is true" },
+          { status: 400 }
+        );
+      }
+      if (nextCompareAt <= nextPrice) {
+        return NextResponse.json(
+          { error: "compareAtPrice must be greater than price when onSale is true" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (nextActive && (!Array.isArray(nextImages) || nextImages.length === 0)) {
+      return NextResponse.json(
+        { error: "Active products must include at least one image" },
+        { status: 400 }
+      );
+    }
+
     if (body.slug !== undefined && body.slug !== product.slug) {
       const existing = await prisma.product.findUnique({ where: { slug: body.slug } });
       if (existing) {

@@ -107,6 +107,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const numericPrice = parseFloat(price);
+    if (Number.isNaN(numericPrice) || numericPrice <= 0) {
+      return NextResponse.json(
+        { error: "price must be a number greater than 0" },
+        { status: 400 }
+      );
+    }
+
+    const numericStock = stock != null ? parseInt(stock, 10) : 0;
+    const numericLowStock = lowStockThreshold != null ? parseInt(lowStockThreshold, 10) : 10;
+    if (numericStock < 0) {
+      return NextResponse.json(
+        { error: "stock cannot be negative" },
+        { status: 400 }
+      );
+    }
+    if (numericLowStock < 0) {
+      return NextResponse.json(
+        { error: "lowStockThreshold cannot be negative" },
+        { status: 400 }
+      );
+    }
+
+    const numericCompareAt =
+      compareAtPrice != null && compareAtPrice !== ""
+        ? parseFloat(compareAtPrice)
+        : null;
+    if (onSale === true) {
+      if (numericCompareAt == null || Number.isNaN(numericCompareAt)) {
+        return NextResponse.json(
+          { error: "compareAtPrice is required when onSale is true" },
+          { status: 400 }
+        );
+      }
+      if (numericCompareAt <= numericPrice) {
+        return NextResponse.json(
+          { error: "compareAtPrice must be greater than price when onSale is true" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const imageArray = Array.isArray(images) ? images : [];
+    const isActive = active !== false;
+    if (isActive && imageArray.length === 0) {
+      return NextResponse.json(
+        { error: "Active products must include at least one image" },
+        { status: 400 }
+      );
+    }
+
     const slugValue = slug || name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     const existing = await prisma.product.findUnique({ where: { slug: slugValue } });
     if (existing) {
@@ -122,18 +173,18 @@ export async function POST(request: NextRequest) {
         slug: slugValue,
         description: description || "",
         shortDescription: shortDescription || null,
-        price: parseFloat(price),
-        compareAtPrice: compareAtPrice != null ? parseFloat(compareAtPrice) : null,
+        price: numericPrice,
+        compareAtPrice: numericCompareAt,
         printable: printable === true,
         printingCost: printingCost != null ? parseFloat(printingCost) : 0,
         sku: sku || null,
         category: category || "uncategorized",
         tags: Array.isArray(tags) ? tags : [],
-        images: Array.isArray(images) ? images : [],
+        images: imageArray,
         sizes: Array.isArray(sizes) ? sizes : [],
         colors: Array.isArray(colors) ? colors : [],
-        stock: stock != null ? parseInt(stock, 10) : 0,
-        lowStockThreshold: lowStockThreshold != null ? parseInt(lowStockThreshold, 10) : 10,
+        stock: numericStock,
+        lowStockThreshold: numericLowStock,
         weight: weight != null ? parseFloat(weight) : null,
         featured: featured === true,
         active: active !== false,

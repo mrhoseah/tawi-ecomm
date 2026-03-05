@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cognitoConfirmSignUp, isCognitoConfigured } from "@/lib/cognito-auth";
+import { withRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  return withRateLimit(request, handlePost, "auth:cognito:confirm", {
+    limit: 10,
+    windowMs: 60_000,
+  });
+}
+
+async function handlePost(request: NextRequest) {
   try {
     if (!isCognitoConfigured()) {
       return NextResponse.json(
@@ -40,3 +48,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

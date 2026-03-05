@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function ForgotPasswordPage() {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -77,7 +80,15 @@ export default function ForgotPasswordPage() {
                   been sent. Check your inbox and spam folder.
                 </div>
                 <Link
-                  href={`/reset-password?email=${encodeURIComponent(email.trim().toLowerCase())}`}
+                  href={() => {
+                    const params = new URLSearchParams({
+                      email: email.trim().toLowerCase(),
+                    });
+                    if (callbackUrl) {
+                      params.set("callbackUrl", callbackUrl);
+                    }
+                    return `/reset-password?${params.toString()}`;
+                  }()}
                   className="block w-full text-center py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
                 >
                   Enter reset code
@@ -112,7 +123,11 @@ export default function ForgotPasswordPage() {
             <p className="mt-6 text-center text-sm text-gray-600">
               Remember your password?{" "}
               <Link
-                href="/sign-in"
+                href={
+                  callbackUrl && callbackUrl !== "/"
+                    ? `/sign-in?callbackUrl=${encodeURIComponent(callbackUrl)}`
+                    : "/sign-in"
+                }
                 className="text-red-600 hover:text-red-700 font-medium"
               >
                 Sign in

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import Header from "@/components/Header";
@@ -23,12 +24,14 @@ export default function AccountLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  if (status === "unauthenticated") {
-    router.push("/sign-in?callbackUrl=/account");
-    return null;
-  }
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      const target = pathname || "/account";
+      router.replace(`/sign-in?callbackUrl=${encodeURIComponent(target)}`);
+    }
+  }, [status, pathname, router]);
 
-  if (!session) {
+  if (status === "loading" || status === "unauthenticated" || !session) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />

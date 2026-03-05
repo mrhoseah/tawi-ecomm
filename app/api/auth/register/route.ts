@@ -4,8 +4,16 @@ import bcrypt from "bcryptjs";
 import { validatePassword, validateEmail } from "@/lib/password-validation";
 import { createCognitoUser } from "@/lib/cognito";
 import { sendWelcomeEmail } from "@/lib/email";
+import { withRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  return withRateLimit(request, handlePost, "auth:register", {
+    limit: 5,
+    windowMs: 60_000,
+  });
+}
+
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { name, email, password } = body;
@@ -101,4 +109,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 

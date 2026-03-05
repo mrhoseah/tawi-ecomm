@@ -26,6 +26,7 @@ type Product = {
   price: number;
   category: string;
   stock: number;
+  lowStockThreshold: number | null;
   active: boolean;
   featured: boolean;
   onSale: boolean;
@@ -48,6 +49,7 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState({
@@ -79,6 +81,9 @@ export default function AdminProductsPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const sizeInputRef = useRef<HTMLInputElement>(null);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const addSize = (size: string) => {
     const trimmed = size.trim().toUpperCase();
@@ -95,6 +100,8 @@ export default function AdminProductsPage() {
     params.set("limit", pagination.limit.toString());
     if (search) params.set("q", search);
     if (categoryFilter) params.set("category", categoryFilter);
+    if (statusFilter === "active") params.set("active", "true");
+    if (statusFilter === "inactive") params.set("active", "false");
     setLoading(true);
     try {
       const [prodRes, catRes] = await Promise.all([
@@ -117,7 +124,7 @@ export default function AdminProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, search, categoryFilter, showToast]);
+  }, [pagination.page, pagination.limit, search, categoryFilter, statusFilter, showToast]);
 
   useEffect(() => {
     fetchProducts();
@@ -154,22 +161,56 @@ export default function AdminProductsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+
+    const priceValue = parseFloat(form.price) || 0;
+    const stockValue = parseInt(form.stock, 10) || 0;
+    const lowStockValue = parseInt(form.lowStockThreshold, 10) || 0;
+    const compareAtValue = form.compareAtPrice ? parseFloat(form.compareAtPrice) : null;
+    const imageList = form.images ? form.images.split(",").map((u) => u.trim()).filter(Boolean) : [];
+
+    if (!form.name.trim()) {
+      showToast("Product name is required", "error");
+      return;
+    }
+    if (isNaN(priceValue) || priceValue <= 0) {
+      showToast("Price must be greater than 0", "error");
+      return;
+    }
+    if (stockValue < 0) {
+      showToast("Stock cannot be negative", "error");
+      return;
+    }
+    if (lowStockValue < 0) {
+      showToast("Low stock threshold cannot be negative", "error");
+      return;
+    }
+    if (form.onSale && (compareAtValue == null || compareAtValue <= priceValue)) {
+      showToast("Compare-at price must be greater than price when On Sale is checked", "error");
+      return;
+    }
+    if (form.active && imageList.length === 0) {
+      showToast("Active products must have at least one image", "error");
+      return;
+    }
+
     try {
+      setSubmitting(true);
       const payload = {
         name: form.name,
         slug: form.slug || undefined,
         description: form.description || "",
         shortDescription: form.shortDescription || null,
-        price: parseFloat(form.price) || 0,
-        compareAtPrice: form.compareAtPrice ? parseFloat(form.compareAtPrice) : null,
+        price: priceValue,
+        compareAtPrice: compareAtValue,
         sku: form.sku || null,
         category: form.category || "uncategorized",
         tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
-        images: form.images ? form.images.split(",").map((u) => u.trim()).filter(Boolean) : [],
+        images: imageList,
         sizes: Array.isArray(form.sizes) ? form.sizes.filter(Boolean) : [],
         colors: form.colors ? form.colors.split(",").map((c) => c.trim()).filter(Boolean) : [],
-        stock: parseInt(form.stock, 10) || 0,
-        lowStockThreshold: parseInt(form.lowStockThreshold, 10) || 10,
+        stock: stockValue,
+        lowStockThreshold: lowStockValue || 10,
         featured: form.featured,
         active: form.active,
         onSale: form.onSale,
@@ -193,6 +234,8 @@ export default function AdminProductsPage() {
       fetchProducts();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed", "error");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -275,6 +318,48 @@ export default function AdminProductsPage() {
     }
   };
 
+  const toggleProductBoolean = async (product: Product, field: "active" | "featured") => {
+    if (!canWrite || updatingId) return;
+    setUpdatingId(product.id);
+    const nextValue = !product[field];
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: nextValue }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update product");
+      setProducts((prev) =>
+        prev.map((p) => (p.id === product.id ? { ...p, [field]: nextValue } : p))
+      );
+      showToast(
+        field === "active"
+          ? nextValue
+            ? "Product activated"
+            : "Product deactivated"
+          : nextValue
+            ? "Product marked as featured"
+            : "Product unfeatured",
+        "success"
+      );
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Failed to update product",
+        "error"
+      );
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const displayedProducts = lowStockOnly
+    ? products.filter((p) => {
+        const threshold = p.lowStockThreshold ?? 10;
+        return p.stock > 0 && p.stock <= threshold;
+      })
+    : products;
+
   if (loading && products.length === 0) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -320,6 +405,27 @@ export default function AdminProductsPage() {
                 </option>
               ))}
             </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                const value = e.target.value as "" | "active" | "inactive";
+                setStatusFilter(value);
+                setPagination((p) => ({ ...p, page: 1 }));
+              }}
+              className="h-9 rounded-md border px-2 text-sm"
+            >
+              <option value="">All statuses</option>
+              <option value="active">Active only</option>
+              <option value="inactive">Inactive only</option>
+            </select>
+            <Button
+              type="button"
+              variant={lowStockOnly ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLowStockOnly((v) => !v)}
+            >
+              Low stock only
+            </Button>
             {canWrite && (
               <Button onClick={() => { setEditing(null); resetForm(); setShowForm(true); }}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -342,93 +448,152 @@ export default function AdminProductsPage() {
                 </div>
               </div>
               <div>
+                <label className="block text-sm font-medium mb-1">Short Description</label>
+                <textarea
+                  value={form.shortDescription}
+                  onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
+                  rows={2}
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  placeholder="Shown in product cards and quick views."
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-1">Description *</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  rows={3}
+                  rows={4}
                   className="w-full rounded-md border px-3 py-2 text-sm"
                 />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Price *</label>
-                  <Input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Compare at price</label>
-                  <Input type="number" step="0.01" value={form.compareAtPrice} onChange={(e) => setForm({ ...form, compareAtPrice: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Category</label>
-                  <select
-                    value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="w-full h-9 rounded-md border px-2 text-sm"
-                  >
-                    <option value="uncategorized">Uncategorized</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.slug}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">SKU</label>
-                  <Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Stock</label>
-                  <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Sizes</label>
-                  <div className="flex flex-wrap gap-2 p-2 border rounded-md min-h-[2.25rem] bg-background">
-                    {form.sizes.map((s, i) => (
-                      <span
-                        key={`${s}-${i}`}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary text-sm"
-                      >
-                        {s}
-                        <button
-                          type="button"
-                          onClick={() => removeSize(i)}
-                          className="hover:bg-primary/20 rounded p-0.5"
-                          aria-label={`Remove ${s}`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
-                    <input
-                      ref={sizeInputRef}
-                      type="text"
-                      placeholder="Add size (e.g. S, M, XL)"
-                      className="flex-1 min-w-[120px] outline-none bg-transparent text-sm"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addSize((e.target as HTMLInputElement).value);
-                          (e.target as HTMLInputElement).value = "";
-                        }
-                      }}
-                      onBlur={(e) => {
-                        const v = e.target.value.trim();
-                        if (v) addSize(v);
-                        e.target.value = "";
-                      }}
+              <div className="mt-4 border-t pt-4">
+                <h3 className="text-sm font-semibold mb-3">Pricing</h3>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Price *</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.price}
+                      onChange={(e) => setForm({ ...form, price: e.target.value })}
+                      required
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">Type a size and press Enter to add</p>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Compare at price</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.compareAtPrice}
+                      onChange={(e) => setForm({ ...form, compareAtPrice: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Must be higher than price when On Sale is checked.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Printing cost</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.printingCost}
+                      onChange={(e) => setForm({ ...form, printingCost: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">SKU</label>
+                    <Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Colors (comma)</label>
-                  <Input value={form.colors} onChange={(e) => setForm({ ...form, colors: e.target.value })} placeholder="Red, Blue" />
+              </div>
+              <div className="mt-4 border-t pt-4">
+                <h3 className="text-sm font-semibold mb-3">Categorization</h3>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Category</label>
+                    <select
+                      value={form.category}
+                      onChange={(e) => setForm({ ...form, category: e.target.value })}
+                      className="w-full h-9 rounded-md border px-2 text-sm"
+                    >
+                      <option value="uncategorized">Uncategorized</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.slug}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Tags (comma)</label>
+                    <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Colors (comma)</label>
+                    <Input value={form.colors} onChange={(e) => setForm({ ...form, colors: e.target.value })} placeholder="Red, Blue" />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Tags (comma)</label>
-                  <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
+              </div>
+              <div className="mt-4 border-t pt-4">
+                <h3 className="text-sm font-semibold mb-3">Inventory</h3>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Stock</label>
+                    <Input
+                      type="number"
+                      value={form.stock}
+                      onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Low stock threshold</label>
+                    <Input
+                      type="number"
+                      value={form.lowStockThreshold}
+                      onChange={(e) => setForm({ ...form, lowStockThreshold: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      We will highlight products at or below this stock.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Sizes</label>
+                    <div className="flex flex-wrap gap-2 p-2 border rounded-md min-h-[2.25rem] bg-background">
+                      {form.sizes.map((s, i) => (
+                        <span
+                          key={`${s}-${i}`}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary text-sm"
+                        >
+                          {s}
+                          <button
+                            type="button"
+                            onClick={() => removeSize(i)}
+                            className="hover:bg-primary/20 rounded p-0.5"
+                            aria-label={`Remove ${s}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                      <input
+                        ref={sizeInputRef}
+                        type="text"
+                        placeholder="Add size (e.g. S, M, XL)"
+                        className="flex-1 min-w-[120px] outline-none bg-transparent text-sm"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addSize((e.target as HTMLInputElement).value);
+                            (e.target as HTMLInputElement).value = "";
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const v = e.target.value.trim();
+                          if (v) addSize(v);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Type a size and press Enter to add</p>
+                  </div>
                 </div>
               </div>
               <div>
@@ -460,7 +625,7 @@ export default function AdminProductsPage() {
                   />
                 </div>
               </div>
-              <div className="flex flex-wrap gap-4 items-center">
+              <div className="mt-4 border-t pt-4 flex flex-wrap gap-4 items-center">
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
                   Active
@@ -505,18 +670,19 @@ export default function AdminProductsPage() {
                 <TableHead>Price</TableHead>
                 <TableHead>Stock</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Labels</TableHead>
                 {canWrite && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.length === 0 ? (
+              {displayedProducts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canWrite ? 6 : 5} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={canWrite ? 7 : 6} className="text-center py-12 text-muted-foreground">
                     No products found.
                   </TableCell>
                 </TableRow>
               ) : (
-                products.map((p) => (
+                displayedProducts.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -537,10 +703,82 @@ export default function AdminProductsPage() {
                       {p.onSale && <Badge variant="secondary" className="ml-2">Sale</Badge>}
                     </TableCell>
                     <TableCell>
-                      <span className={p.stock < 10 ? "text-destructive font-medium" : ""}>{p.stock}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={p.stock <= 0 ? "text-destructive font-semibold" : p.lowStockThreshold != null && p.stock <= p.lowStockThreshold ? "text-amber-600 dark:text-amber-400 font-medium" : ""}>
+                          {p.stock}
+                        </span>
+                        {p.stock <= 0 && (
+                          <Badge variant="destructive" className="text-xs">
+                            Out of stock
+                          </Badge>
+                        )}
+                        {p.stock > 0 && p.lowStockThreshold != null && p.stock <= p.lowStockThreshold && (
+                          <Badge variant="secondary" className="text-xs">
+                            Low stock
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={p.active ? "default" : "secondary"}>{p.active ? "Active" : "Inactive"}</Badge>
+                      {canWrite ? (
+                        <button
+                          type="button"
+                          disabled={!!updatingId}
+                          onClick={() => toggleProductBoolean(p, "active")}
+                          className="inline-flex items-center"
+                        >
+                          <Badge
+                            variant={p.active ? "default" : "secondary"}
+                            className="cursor-pointer"
+                          >
+                            {p.active ? "Active" : "Inactive"}
+                          </Badge>
+                        </button>
+                      ) : (
+                        <Badge variant={p.active ? "default" : "secondary"}>
+                          {p.active ? "Active" : "Inactive"}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {p.featured && (
+                          <Badge variant="secondary" className="text-xs">
+                            Featured
+                          </Badge>
+                        )}
+                        {p.onSale && (
+                          <Badge variant="secondary" className="text-xs">
+                            On sale
+                          </Badge>
+                        )}
+                        {p.newArrival && (
+                          <Badge variant="secondary" className="text-xs">
+                            New
+                          </Badge>
+                        )}
+                        {p.bestSeller && (
+                          <Badge variant="secondary" className="text-xs">
+                            Best seller
+                          </Badge>
+                        )}
+                        {canWrite && (
+                          <button
+                            type="button"
+                            disabled={!!updatingId}
+                            onClick={() => toggleProductBoolean(p, "featured")}
+                            className="inline-flex"
+                            title={p.featured ? "Remove featured" : "Mark as featured"}
+                          >
+                            <Badge
+                              variant={p.featured ? "default" : "outline"}
+                              className="text-xs cursor-pointer"
+                            >
+                              {p.featured ? "★ Featured" : "☆ Feature"}
+                            </Badge>
+                          </button>
+                        )}
+                      </div>
                     </TableCell>
                     {canWrite && (
                       <TableCell className="text-right">

@@ -20,7 +20,7 @@ const PayPalSection = dynamic(() => import("./PayPalSection"), { ssr: false });
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
 
 export default function CheckoutPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const { items, getTotal, clearCart } = useCartStore();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -390,9 +390,32 @@ export default function CheckoutPage() {
     }
   };
 
-  // Require login only at checkout
-  if (!session) {
-    router.push("/sign-in?callbackUrl=/checkout");
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/sign-in?callbackUrl=/checkout");
+    }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (status === "authenticated" && items.length === 0) {
+      router.replace("/cart");
+    }
+  }, [status, items.length, router]);
+
+  // Auth and cart guards
+  if (status === "loading" || (!session && status !== "unauthenticated")) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <LoadingSpinner />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated") {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -408,17 +431,13 @@ export default function CheckoutPage() {
   }
 
   if (items.length === 0) {
-    router.push("/cart");
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <p className="text-lg mb-4">Your cart is empty</p>
-            <Link
-              href="/shop"
-              className="text-red-600 hover:underline"
-            >
+            <Link href="/shop" className="text-red-600 hover:underline">
               Continue Shopping
             </Link>
           </div>

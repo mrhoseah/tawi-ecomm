@@ -12,6 +12,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const emailParam = searchParams.get("email") ?? "";
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
 
   const [email, setEmail] = useState(emailParam);
   const [code, setCode] = useState("");
@@ -87,7 +88,11 @@ function ResetPasswordForm() {
                 You can now sign in with your new password.
               </p>
               <Link
-                href="/sign-in"
+                href={
+                  callbackUrl && callbackUrl !== "/"
+                    ? `/sign-in?callbackUrl=${encodeURIComponent(callbackUrl)}`
+                    : "/sign-in"
+                }
                 className="inline-flex justify-center w-full py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
               >
                 Sign in
@@ -188,7 +193,11 @@ function ResetPasswordForm() {
             <p className="mt-6 text-center text-sm text-gray-600">
               Need a new code?{" "}
               <Link
-                href="/forgot-password"
+                href={
+                  callbackUrl && callbackUrl !== "/"
+                    ? `/forgot-password?callbackUrl=${encodeURIComponent(callbackUrl)}`
+                    : "/forgot-password"
+                }
                 className="text-red-600 hover:text-red-700 font-medium"
               >
                 Request again

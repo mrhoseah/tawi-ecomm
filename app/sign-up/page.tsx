@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import Header from "@/components/Header";
@@ -14,6 +15,8 @@ const MAX_EMAIL = 254;
 
 export default function SignUpPage() {
   const { update: updateSession } = useSession();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -74,7 +77,13 @@ export default function SignUpPage() {
 
       if (cognitoRes.ok) {
         const data = await cognitoRes.json();
-        window.location.href = `/sign-up/verify?email=${encodeURIComponent(data.email)}`;
+        const params = new URLSearchParams({
+          email: data.email,
+        });
+        if (callbackUrl) {
+          params.set("callbackUrl", callbackUrl);
+        }
+        window.location.href = `/sign-up/verify?${params.toString()}`;
         return;
       }
 
@@ -114,6 +123,9 @@ export default function SignUpPage() {
         emailSent: data.emailSent ? "true" : "false",
         signedIn: result?.ok ? "true" : "false",
       });
+      if (callbackUrl) {
+        params.set("callbackUrl", callbackUrl);
+      }
       window.location.href = `/sign-up/success?${params.toString()}`;
     } catch (error) {
       setError("An error occurred. Please try again.");

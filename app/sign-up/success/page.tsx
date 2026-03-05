@@ -13,6 +13,7 @@ function SignUpSuccessContent() {
   const emailSent = searchParams.get("emailSent") === "true";
   const signedIn = searchParams.get("signedIn") === "true";
   const flow = searchParams.get("flow");
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
 
   const isCognitoFlow = flow === "cognito";
 
@@ -62,7 +63,13 @@ function SignUpSuccessContent() {
                   <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-red-600" />
                 </Link>
                 <Link
-                  href={signedIn ? "/account" : "/sign-in"}
+                  href={
+                    signedIn
+                      ? callbackUrl && callbackUrl !== "/"
+                        ? callbackUrl
+                        : "/account"
+                      : `/sign-in${callbackUrl && callbackUrl !== "/" ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`
+                  }
                   className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-red-600 hover:bg-red-50/50 transition-colors group"
                 >
                   <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 group-hover:bg-red-100">
@@ -82,7 +89,7 @@ function SignUpSuccessContent() {
             </div>
 
             <Link
-              href="/"
+              href={callbackUrl && callbackUrl !== "/" ? callbackUrl : "/"}
               className="inline-flex items-center justify-center w-full py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
             >
               Continue to home

@@ -27,17 +27,18 @@ interface Order {
 }
 
 export default function OrdersPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "completed" | "cancelled">("all");
 
   useEffect(() => {
-    if (!session) {
-      router.push("/sign-in?callbackUrl=/orders");
+    if (status === "unauthenticated") {
+      router.replace("/sign-in?callbackUrl=/orders");
       return;
     }
+    if (status !== "authenticated") return;
 
     fetch("/api/orders")
       .then((res) => res.json())
@@ -46,18 +47,29 @@ export default function OrdersPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [session, router]);
+  }, [status, router]);
 
-  if (!session) {
-    return null;
-  }
-
-  if (loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 flex items-center justify-center">
           <LoadingSpinner size="lg" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated" || !session) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-lg mb-4">Please sign in to view your orders</p>
+            <p className="text-gray-600">Redirecting…</p>
+          </div>
         </main>
         <Footer />
       </div>

@@ -6,7 +6,13 @@ import { CurrencyProvider } from "@/contexts/CurrencyContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider refetchInterval={5} refetchOnWindowFocus={true}>
+    <SessionProvider
+      refetchOnWindowFocus={true}
+      refetchInterval={5}
+      refetchWhenOffline={false}
+      refetchOnMount="always"
+      staleTime={0}
+    >
       <CurrencyProvider>
         <ToastProvider>{children}</ToastProvider>
       </CurrencyProvider>

@@ -11,18 +11,18 @@ import { Heart, ShoppingBag } from "lucide-react";
 import QuickAddToCart from "@/components/QuickAddToCart";
 
 export default function WishlistPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!session) {
-      router.push("/sign-in?callbackUrl=/wishlist");
+    if (status === "unauthenticated") {
+      router.replace("/sign-in?callbackUrl=/wishlist");
       return;
     }
+    if (status !== "authenticated") return;
 
-    // Load wishlist from localStorage
     const wishlist = JSON.parse(
       localStorage.getItem("wishlist") || "[]"
     ) as string[];
@@ -32,7 +32,6 @@ export default function WishlistPage() {
       return;
     }
 
-    // Fetch products
     fetch(`/api/products?ids=${wishlist.join(",")}`)
       .then((res) => res.json())
       .then((data) => {
@@ -40,7 +39,7 @@ export default function WishlistPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [session, router]);
+  }, [status, router]);
 
   const removeFromWishlist = (productId: string) => {
     const wishlist = JSON.parse(
@@ -51,16 +50,27 @@ export default function WishlistPage() {
     setProducts(products.filter((p) => p.id !== productId));
   };
 
-  if (!session) {
-    return null;
-  }
-
-  if (loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 flex items-center justify-center">
           <LoadingSpinner size="lg" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated" || !session) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-lg mb-4">Please sign in to view your wishlist</p>
+            <p className="text-gray-600">Redirecting…</p>
+          </div>
         </main>
         <Footer />
       </div>
